@@ -301,15 +301,15 @@ export function ConsultationPage() {
                   <VoiceRibbon level={speech.level} live={speech.listening} />
                   <small>
                     {speech.listening
-                      ? "Fale naturalmente. O texto entra na transcrição a cada pausa."
-                      : "O áudio é transcrito no servidor da clínica e não fica guardado."}
+                      ? "Fale naturalmente o texto entra na transcrição a cada pausa"
+                      : "O áudio é transcrito no servidor da clínica e não fica guardado"}
                   </small>
                 </div>
               </div>
             ) : (
               <div className="alert alert-warning">
                 <TriangleAlert size={18} />
-                <div>Este navegador não permite gravar áudio (é preciso um navegador atualizado e conexão HTTPS). Cole a transcrição abaixo.</div>
+                <div>Este navegador não permite gravar áudio (é preciso um navegador atualizado e conexão HTTPS) Cole a transcrição abaixo</div>
               </div>
             )}
             {speech.error && (

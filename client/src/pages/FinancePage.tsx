@@ -83,7 +83,7 @@ export function FinancePage() {
             <strong>{summary ? brl(summary.income) : "..."}</strong>
           </div>
           <span className="statement-op" aria-hidden="true">
-            −
+            -
           </span>
           <div>
             <span>Saídas</span>

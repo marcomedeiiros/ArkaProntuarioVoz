@@ -85,7 +85,7 @@ const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
 const FAQ = [
   {
     q: "Preciso trocar de sistema de prontuário?",
-    a: "Não o Prontuário por Voz gera os textos e você cola no prontuário e na receita digital que já usa nada de migração",
+    a: "Não o prontuário por voz gera os textos e você cola no prontuário e na receita digital que já usa nada de migração",
   },
   {
     q: "A IA substitui a minha avaliação?",
@@ -496,9 +496,9 @@ type Showcase = "record" | "rx" | "guide";
 function OutputShowcase() {
   const [tab, setTab] = useState<Showcase>("record");
   const tabs: { key: Showcase; icon: LucideIcon; title: string; text: string }[] = [
-    { key: "record", icon: FileText, title: "Evolução clínica", text: "Seções completas, prontas para colar no prontuário." },
-    { key: "rx", icon: Pill, title: "Receita organizada", text: "Medicamento, posologia e duração para a receita digital." },
-    { key: "guide", icon: Heart, title: "Guia para os pais", text: "Linguagem acolhedora, formatada para o WhatsApp." },
+    { key: "record", icon: FileText, title: "Evolução clínica", text: "Seções completas, prontas para colar no prontuário" },
+    { key: "rx", icon: Pill, title: "Receita organizada", text: "Medicamento, posologia e duração para a receita digital" },
+    { key: "guide", icon: Heart, title: "Guia para os pais", text: "Linguagem acolhedora, formatada para o WhatsApp" },
   ];
 
   return (
@@ -531,12 +531,12 @@ function OutputShowcase() {
               <span className="lp-pill">Copiar para o prontuário</span>
             </div>
             {[
-              ["IDENTIFICAÇÃO", "Lactente de 3 meses, acompanhado pela mãe."],
-              ["ALIMENTAÇÃO", "Aleitamento materno exclusivo, em livre demanda, cerca de 8 mamadas ao dia."],
-              ["SONO", "Sono tranquilo, despertares noturnos (2x) para mamar."],
-              ["DESENVOLVIMENTO", "Sustento cefálico e sorriso social presentes. Adequado para a idade."],
-              ["VACINAÇÃO", "Vacinas dos 2 meses realizadas."],
-              ["CONDUTA", "Manter aleitamento materno exclusivo. Suplementação de vitamina D."],
+              ["IDENTIFICAÇÃO", "Lactente de 3 meses, acompanhado pela mãe"],
+              ["ALIMENTAÇÃO", "Aleitamento materno exclusivo, em livre demanda, cerca de 8 mamadas ao dia"],
+              ["SONO", "Sono tranquilo, despertares noturnos (2x) para mamar"],
+              ["DESENVOLVIMENTO", "Sustento cefálico e sorriso social presentes, adequado para a idade"],
+              ["VACINAÇÃO", "Vacinas dos 2 meses realizadas"],
+              ["CONDUTA", "Manter aleitamento materno exclusivo, suplementação de vitamina D"],
             ].map(([k, v], i) => (
               <p key={k} style={{ animationDelay: `${i * 70}ms` }}>
                 <em>{k}:</em> {v}
@@ -979,7 +979,7 @@ export function LandingPage() {
           <Reveal className="lp-head">
             <span className="lp-kicker">Planos</span>
             <h2>Comece sozinha ou com a nossa equipe ao lado</h2>
-            <p>A implantação é opcional e cobrada uma única vez</p>
+            <p>A implantação é obrigatória e cobrada uma única vez</p>
           </Reveal>
           <div className="lp-plans">
             <Reveal className="lp-plan">
@@ -1000,10 +1000,10 @@ export function LandingPage() {
               </Link>
             </Reveal>
             <Reveal className="lp-plan" delay={100}>
-              <h3>Implantação Essencial</h3>
+              <h3>Essencial</h3>
               <p className="lp-plan-desc">Configuração guiada</p>
               <p className="lp-price">
-                R$ 1.500<small> em até 3x</small>
+                R$ 3.000<small> em até 3x</small>
               </p>
               <ul>
                 <li>Configuração completa da conta</li>
@@ -1018,17 +1018,17 @@ export function LandingPage() {
             </Reveal>
             <Reveal className="lp-plan featured" delay={200}>
               <span className="lp-badge">Mais completo</span>
-              <h3>Implantação Premium</h3>
+              <h3>Premium</h3>
               <p className="lp-plan-desc">Para a clínica inteira</p>
               <p className="lp-price">
-                R$ 2.800<small> em até 3x</small>
+                R$ 4.500<small> em até 3x</small>
               </p>
               <ul>
                 <li>Setup multi-dispositivo</li>
                 <li>Até 5 templates avançados</li>
                 <li>Guia visual personalizado para os pais</li>
                 <li>Treinamento da médica e da secretária</li>
-                <li>30 dias de suporte prioritário</li>
+                <li>90 dias de suporte prioritário</li>
               </ul>
               <a href="#contato" className="lp-btn block white">
                 Falar com a equipe
