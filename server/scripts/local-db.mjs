@@ -4,6 +4,7 @@
 import "dotenv/config";
 import EmbeddedPostgres from "embedded-postgres";
 import { existsSync } from "node:fs";
+import net from "node:net";
 
 if (!process.env.DATABASE_URL) {
   console.error("Defina DATABASE_URL em server/.env (veja server/env.example).");
@@ -47,6 +48,23 @@ const pg = new EmbeddedPostgres({
     }
   },
 });
+
+// Porta ocupada = outro Postgres rodando (muitas vezes o db:local de outra cópia do projeto).
+const port = Number(url.port || 5432);
+const busy = await new Promise((done) => {
+  const socket = net.connect({ host: "127.0.0.1", port }, () => {
+    socket.destroy();
+    done(true);
+  });
+  socket.on("error", () => done(false));
+});
+if (busy) {
+  console.error(
+    `A porta ${port} já está em uso por outro Postgres (talvez o db:local de outra cópia do projeto).\n` +
+      "Pare o outro primeiro, ou use outra porta no DATABASE_URL desta pasta (ex.: localhost:5433).",
+  );
+  process.exit(1);
+}
 
 if (firstRun) await pg.initialise();
 await pg.start();

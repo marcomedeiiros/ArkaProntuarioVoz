@@ -95,7 +95,7 @@ export function DashboardPage() {
               </div>
             </div>
             {toReview.length === 0 ? (
-              <EmptyState icon={ClipboardList} title="Tudo em dia" text="Nenhuma consulta pendente de revisão." />
+              <EmptyState icon={ClipboardList} title="Tudo em dia" text="Nenhuma consulta pendente de revisão" />
             ) : (
               <div className="list">
                 {toReview.slice(0, 6).map((c) => (
@@ -131,7 +131,7 @@ export function DashboardPage() {
               <EmptyState
                 icon={Stethoscope}
                 title="Nenhuma consulta ainda"
-                text="Abra o cadastro de um paciente para iniciar a primeira consulta."
+                text="Abra o cadastro de um paciente para iniciar a primeira consulta"
                 action={
                   <Link to="/pacientes" className="btn btn-primary">
                     Ir para pacientes
