@@ -25,22 +25,33 @@ export function setSessionEndedHandler(handler: (() => void) | null) {
   onSessionEnded = handler;
 }
 
+const OFFLINE_MESSAGE = "Não foi possível falar com o servidor. Verifique sua conexão ou tente de novo em instantes.";
+
 // Nessas rotas, 401 é uma resposta esperada e não significa "sessão caiu".
 const AUTH_PROBES = ["/auth/me", "/auth/login", "/auth/register"];
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const binary = body instanceof ArrayBuffer || ArrayBuffer.isView(body);
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: "same-origin",
-    headers:
-      body === undefined ? undefined : { "Content-Type": binary ? "application/octet-stream" : "application/json" },
-    body: body === undefined ? undefined : binary ? (body as BodyInit) : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      credentials: "same-origin",
+      headers:
+        body === undefined ? undefined : { "Content-Type": binary ? "application/octet-stream" : "application/json" },
+      body: body === undefined ? undefined : binary ? (body as BodyInit) : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, OFFLINE_MESSAGE); // sem internet ou servidor fora do ar
+  }
   if (res.status === 401 && !AUTH_PROBES.includes(path)) onSessionEnded?.();
   if (res.status === 204) return undefined as T;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data.error ?? "Erro inesperado");
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    // Resposta sem o JSON da nossa API: quem respondeu foi o proxy/servidor web, não a API (ela está fora do ar).
+    if (!data) throw new ApiError(res.status, res.status >= 500 ? OFFLINE_MESSAGE : "Erro inesperado");
+    throw new ApiError(res.status, data.error ?? "Erro inesperado");
+  }
   return data as T;
 }
 

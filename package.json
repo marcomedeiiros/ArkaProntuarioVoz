@@ -3,10 +3,13 @@
   "private": true,
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
+    "setup:env": "npm --prefix server run setup:env --",
+    "db:local": "npm --prefix server run db:local",
+    "db:migrate": "npm --prefix server run db:migrate",
+    "db:seed": "npm --prefix server run db:seed",
+    "db:up": "docker compose up -d db",
     "dev": "concurrently -n server,client -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix server run build && npm --prefix client run build",
-    "db:up": "docker compose up -d db",
-    "db:migrate": "npm --prefix server run db:migrate",
     "test": "npm --prefix server test"
   },
   "devDependencies": {

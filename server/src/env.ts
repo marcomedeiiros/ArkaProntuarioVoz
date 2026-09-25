@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { z } from "zod";
 
 const EnvSchema = z
@@ -49,7 +51,29 @@ function isWeakSecret(secret: string) {
   return secret.length < 32 || /troque|example|exemplo|changeme|secret|segredo/i.test(secret);
 }
 
-export const env = EnvSchema.parse(process.env);
+export const env = parseEnv();
+
+/** Em vez de um ZodError cru, explica o que falta e como resolver (sem mostrar nenhum valor). */
+function parseEnv() {
+  const result = EnvSchema.safeParse(process.env);
+  if (result.success) return result.data;
+
+  const missing = !existsSync(resolve(__dirname, "../.env"));
+  console.error(
+    [
+      "",
+      missing ? "Arquivo server/.env não encontrado." : "Configuração inválida no server/.env:",
+      ...result.error.issues.map((i) => `  - ${i.path.join(".") || "(geral)"}: ${i.message}`),
+      "",
+      "Para criar/corrigir o server/.env com segredos fortes (nenhum valor aparece na tela):",
+      "  npm run setup:env",
+      "Ele cria o arquivo a partir do zero. O .env nunca vai para o GitHub, então é preciso",
+      "rodar isso em cada computador onde o projeto for clonado. Veja o README, seção \"Primeira vez\".",
+      "",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
 
 if (env.NODE_ENV === "development" && isWeakSecret(env.JWT_SECRET)) {
   console.warn("[aviso] JWT_SECRET fraco ou de exemplo. Rode `npm --prefix server run setup:env` para gerar um forte.");
