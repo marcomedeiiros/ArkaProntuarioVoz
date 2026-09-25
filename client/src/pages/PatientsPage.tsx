@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Phone, Plus, Search, TriangleAlert, Users } from "lucide-react";
 import { api } from "../api";
-import { ageLabel, dateBR, formatPhone } from "../format";
+import { ageLabel, dateBR, formatPhone, plural } from "../format";
 import { PatientForm, type PatientInput } from "../components/PatientForm";
 import { Avatar, EmptyState, Modal, PageHeader, PageLoader } from "../components/ui";
 import { useToast } from "../components/toast";
@@ -51,7 +51,7 @@ export function PatientsPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          {patients && <span className="muted small">{patients.length} paciente(s)</span>}
+          {patients && <span className="muted small">{plural(patients.length, "paciente", "pacientes")}</span>}
         </div>
 
         {!patients ? (
@@ -75,9 +75,8 @@ export function PatientsPage() {
               <thead>
                 <tr>
                   <th>Paciente</th>
-                  <th>Nascimento</th>
+                  <th>Idade</th>
                   <th>Responsável</th>
-                  <th>WhatsApp</th>
                 </tr>
               </thead>
               <tbody>
@@ -86,12 +85,7 @@ export function PatientsPage() {
                     <td className="primary-cell">
                       <div className="cell-main">
                         <Avatar name={p.name} />
-                        <div>
-                          <strong>{p.name}</strong>
-                          <small>
-                            {ageLabel(p.birthDate)} · {p.sex === "F" ? "Feminino" : "Masculino"}
-                          </small>
-                        </div>
+                        <strong>{p.name}</strong>
                         {p.allergies && (
                           <span className="badge badge-danger no-dot" title={`Alergias: ${p.allergies}`}>
                             <TriangleAlert size={12} /> Alergia
@@ -99,14 +93,16 @@ export function PatientsPage() {
                         )}
                       </div>
                     </td>
-                    <td data-label="Nascimento">{dateBR(p.birthDate)}</td>
-                    <td data-label="Responsável">{p.guardianName}</td>
-                    <td data-label="WhatsApp">
-                      <span className="meta-row">
-                        <span>
-                          <Phone size={13} /> {formatPhone(p.guardianPhone)}
-                        </span>
-                      </span>
+                    {/* Em pediatria a idade é o dado principal da linha; o nascimento fica de apoio. */}
+                    <td data-label="Idade" className="age-cell">
+                      <strong>{ageLabel(p.birthDate)}</strong>
+                      <small>nasceu em {dateBR(p.birthDate)}</small>
+                    </td>
+                    <td data-label="Responsável" className="guardian-cell">
+                      <span>{p.guardianName}</span>
+                      <small>
+                        <Phone size={12} /> {formatPhone(p.guardianPhone)}
+                      </small>
                     </td>
                   </tr>
                 ))}

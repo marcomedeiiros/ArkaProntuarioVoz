@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Baby, CalendarDays, ClipboardList, HeartPulse, MessageCircle, Pencil, Stethoscope, TriangleAlert } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../auth";
-import { ageLabel, dateBR, dateTimeBR, formatPhone, TEMPLATE_LABEL, whatsappLink } from "../format";
+import { ageLabel, dateBR, dateTimeBR, formatPhone, TEMPLATE_LABEL, whatsappLink, plural } from "../format";
 import { PatientForm, type PatientInput } from "../components/PatientForm";
 import { Avatar, EmptyState, Modal, PageLoader, StatusBadge } from "../components/ui";
 import { useToast } from "../components/toast";
@@ -101,7 +101,7 @@ export function PatientDetailPage() {
               <div className="card-title">
                 <ClipboardList size={18} /> Histórico de consultas
               </div>
-              <div className="card-subtitle">{patient.consultations.length} atendimento(s)</div>
+              <div className="card-subtitle">{plural(patient.consultations.length, "atendimento", "atendimentos")}</div>
             </div>
           </div>
           {patient.consultations.length === 0 ? (
@@ -111,33 +111,35 @@ export function PatientDetailPage() {
               text={clinical ? "Inicie a primeira consulta pelos botões acima." : undefined}
             />
           ) : (
-            <div className="list">
+            // Linha do tempo: cada consulta mostra a idade que a criança tinha naquele dia,
+            // que é como o pediatra lê o histórico (aos 2 meses, aos 4 meses...).
+            <ol className="timeline">
               {patient.consultations.map((c) => {
                 const content = (
                   <>
-                    <div className={`stat-icon ${c.template === "PUERICULTURA" ? "tone-blue" : "tone-violet"}`} style={{ width: 36, height: 36 }}>
-                      {c.template === "PUERICULTURA" ? <Baby size={17} /> : <Stethoscope size={17} />}
-                    </div>
-                    <div className="grow">
+                    <span className="timeline-age">aos {ageLabel(patient.birthDate, c.createdAt)}</span>
+                    <span className="timeline-body">
                       <strong>{TEMPLATE_LABEL[c.template]}</strong>
                       <small>
-                        {dateTimeBR(c.createdAt)} · {c.doctor.name}
+                        {dateTimeBR(c.createdAt)}, com {c.doctor.name}
                       </small>
-                    </div>
+                    </span>
                     <StatusBadge status={c.status} />
                   </>
                 );
-                return clinical ? (
-                  <Link key={c.id} to={`/consultas/${c.id}`} className="list-item">
-                    {content}
-                  </Link>
-                ) : (
-                  <div key={c.id} className="list-item">
-                    {content}
-                  </div>
+                return (
+                  <li key={c.id} className={`timeline-item is-${c.template.toLowerCase()}`}>
+                    {clinical ? (
+                      <Link to={`/consultas/${c.id}`} className="timeline-row">
+                        {content}
+                      </Link>
+                    ) : (
+                      <div className="timeline-row">{content}</div>
+                    )}
+                  </li>
                 );
               })}
-            </div>
+            </ol>
           )}
         </section>
 

@@ -48,7 +48,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             </li>
           </ul>
         </div>
-        <footer>Feito para consultórios de pediatria · Arka Tecnologia</footer>
+        <footer>Feito para consultórios de pediatria pela Arka Tecnologia</footer>
       </aside>
       <main className="auth-panel">
         <div className="auth-form">

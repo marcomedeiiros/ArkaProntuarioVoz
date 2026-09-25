@@ -40,7 +40,6 @@ export function Layout() {
           <span>{clinic.name}</span>
         </div>
 
-        <div className="nav-section">Menu</div>
         <nav>
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="nav-link">

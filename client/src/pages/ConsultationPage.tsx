@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import { api } from "../api";
 import { ageLabel, brl, dateTimeBR, METHOD_LABEL, TEMPLATE_LABEL, whatsappLink } from "../format";
 import { useServerTranscription } from "../useServerTranscription";
 import { CopyButton } from "../components/CopyButton";
+import { VoiceRibbon } from "../components/VoiceRibbon";
 import { TransactionForm } from "../components/TransactionForm";
 import { Avatar, EmptyState, PageLoader, StatusBadge } from "../components/ui";
 import { useToast } from "../components/toast";
@@ -278,10 +279,7 @@ export function ConsultationPage() {
             </div>
 
             {speech.supported ? (
-              <div
-                className={`recorder ${speech.listening ? "live" : ""}`}
-                style={{ "--level": speech.level } as CSSProperties}
-              >
+              <div className={`recorder ${speech.listening ? "live" : ""}`}>
                 <button
                   className={`mic-btn ${speech.listening ? "live" : ""}`}
                   onClick={speech.listening ? speech.stop : speech.start}
@@ -290,20 +288,23 @@ export function ConsultationPage() {
                 >
                   {speech.listening ? <Square size={20} fill="currentColor" /> : <Mic size={24} />}
                 </button>
-                <div className="status">
-                  <strong>{speech.listening ? "Gravando..." : transcript ? "Continuar gravando" : "Iniciar gravação"}</strong>
+                <div className="recorder-main">
+                  <div className="status">
+                    <strong>{speech.listening ? "Gravando" : transcript ? "Continuar gravando" : "Gravar consulta"}</strong>
+                    {speech.listening && (
+                      <span className="timer" aria-label={`Tempo de gravação: ${formatElapsed(elapsed)}`}>
+                        <span className="rec-dot" aria-hidden="true" />
+                        {formatElapsed(elapsed)}
+                      </span>
+                    )}
+                  </div>
+                  <VoiceRibbon level={speech.level} live={speech.listening} />
                   <small>
                     {speech.listening
-                      ? "Fale naturalmente. O texto aparece a cada pausa."
-                      : "Transcrita no servidor da clínica, O áudio não é guardado"}
+                      ? "Fale naturalmente. O texto entra na transcrição a cada pausa."
+                      : "O áudio é transcrito no servidor da clínica e não fica guardado."}
                   </small>
                 </div>
-                {speech.listening && (
-                  <div className="rec-side">
-                    <span className="timer">{formatElapsed(elapsed)}</span>
-                    <span className="level-meter" aria-hidden="true" />
-                  </div>
-                )}
               </div>
             ) : (
               <div className="alert alert-warning">
@@ -411,7 +412,7 @@ export function ConsultationPage() {
                               <strong>{m.medicamento}</strong>
                               <div className="dose">
                                 <span className={isPending(m.posologia) ? "pending" : ""}>{m.posologia}</span>
-                                {" · "}
+                                {", "}
                                 <span className={isPending(m.duracao) ? "pending" : ""}>{m.duracao}</span>
                               </div>
                             </div>
@@ -453,7 +454,7 @@ export function ConsultationPage() {
                         <div>
                           <strong>{brl(t.amount)}</strong>
                           <div className="muted small">
-                            {METHOD_LABEL[t.method]} · {t.category.name}
+                            {METHOD_LABEL[t.method]}, {t.category.name}
                           </div>
                         </div>
                         <span className={`badge ${t.status === "PAID" ? "badge-success" : "badge-warning"}`}>
@@ -555,7 +556,7 @@ function EditableText({
 
   return (
     <textarea
-      className="textarea"
+      className="textarea doc-text"
       rows={rows}
       value={draft}
       disabled={disabled}

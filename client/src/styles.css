@@ -1,14 +1,16 @@
 /* ============ Tokens ============ */
 :root {
-  --bg: #f4f6fa;
+  /* Mesa (fundo) e papel (folhas): o conteúdo é papel sobre a mesa do consultório. */
+  --bg: #eef2f5;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e4e8ef;
-  --border-strong: #d3d9e3;
-  --text: #0f172a;
-  --text-2: #334155;
-  --muted: #64748b;
-  --subtle: #94a3b8;
+  --surface-2: #f6f8fa;
+  --border: #dde3ea;
+  --border-strong: #c9d2dd;
+  /* Tinta: o texto é o azul da marca, não preto. */
+  --text: #13285a;
+  --text-2: #3b4a63;
+  --muted: #5d6b82;
+  --subtle: #8b97a9;
 
   /* Marca Prontuário por Voz: azul-marinho (primária) + verde-água (destaque) */
   --primary: #13285a;
@@ -21,9 +23,10 @@
 
   --success: #15803d;
   --success-soft: #ecfdf3;
-  --warning: #b45309;
-  --warning-soft: #fffbeb;
-  --warning-border: #fcd68a;
+  /* Âmbar clínico: reservado para "revise antes de usar". */
+  --warning: #8a5300;
+  --warning-soft: #fff3d6;
+  --warning-border: #f2c877;
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --info: #0369a1;
@@ -37,14 +40,21 @@
   --sidebar-muted: #8394b8;
   --sidebar-hover: #15285a;
 
+  /* Raios com hierarquia: controles 8px, folhas 6px (papel tem canto quase reto), pílulas redondas. */
   --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, 0.25);
+  --radius: 6px;
+  --radius-lg: 10px;
+  /* Folhas não flutuam: sem sombra, só a borda. Sombra fica para o que sobrepõe (modal, menu). */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: 0 24px 48px -16px rgba(19, 40, 90, 0.35);
 
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Atkinson Hyperlegible Next: desenhada para não confundir 1/l/I e 0/O (doses!). */
+  --font-ui: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* O que a IA escreve é documento do prontuário: serifa, como o papel impresso. */
+  --font-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+  font-family: var(--font-ui);
   font-size: 15px;
   color: var(--text);
   background: var(--bg);
@@ -192,8 +202,8 @@ svg {
 }
 .nav-section {
   font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--sidebar-muted);
   padding: 0 10px;
   margin-bottom: -10px;
@@ -439,7 +449,7 @@ svg {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   min-width: 0;
 }
@@ -708,8 +718,8 @@ svg {
   text-align: left;
   font-size: 0.74rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--muted);
   background: var(--surface-2);
   padding: 10px 20px;
@@ -1125,40 +1135,222 @@ a.list-item:hover {
 }
 
 /* ============ Dashboard ============ */
-.welcome {
-  background: linear-gradient(120deg, #0c1b3d, #13285a 55%, #047d73);
-  color: #fff;
-  border-radius: var(--radius-lg);
-  padding: 24px 26px;
+/* A mesa do consultório: fila do que espera a médica + números do dia, sem cartões. */
+.desk-head {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: center;
-  gap: 20px;
+  gap: 16px;
   flex-wrap: wrap;
-  position: relative;
-  overflow: hidden;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-strong);
 }
-.welcome::after {
-  content: "";
-  position: absolute;
-  right: -60px;
-  top: -80px;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+.desk-head h1 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.15;
 }
-.welcome h1 {
-  color: #fff;
-  font-size: 1.5rem;
-}
-.welcome p {
-  color: #c9e6e2;
+.desk-head p {
+  color: var(--muted);
   margin-top: 4px;
 }
-.welcome .btn-row {
-  position: relative;
-  z-index: 1;
+.desk-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 40px;
+  margin-top: 28px;
+  align-items: start;
+}
+.desk-body > .ledger:only-child {
+  grid-column: 1 / -1;
+  max-width: 520px;
+}
+.queue h2,
+.recent h2,
+.ledger h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.queue-count {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.queue-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.queue-list li + li {
+  border-top: 1px solid var(--border);
+}
+/* A faixa à esquerda diz em que etapa está: âmbar = a IA já escreveu, falta a sua revisão. */
+.queue-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px 16px 16px;
+  border-left: 4px solid var(--border-strong);
+  color: var(--text);
+}
+.queue-row.is-generated {
+  border-left-color: #e0a526;
+}
+.queue-row:hover {
+  background: var(--surface-2);
+}
+.queue-row:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: -2px;
+}
+.queue-who {
+  min-width: 0;
+}
+.queue-who strong {
+  display: block;
+  font-size: 1.06rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.queue-who span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+.queue-row time,
+.recent time {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.queue-row svg {
+  color: var(--subtle);
+}
+.queue-empty {
+  margin-top: 12px;
+  padding: 20px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  max-width: 62ch;
+}
+.recent {
+  margin-top: 36px;
+}
+.recent ul {
+  list-style: none;
+  margin: 8px 0 12px;
+  padding: 0;
+}
+.recent li a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+}
+.recent li a:hover span:first-child {
+  color: var(--text);
+  text-decoration: underline;
+}
+.recent-meta {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.ledger {
+  border-left: 1px solid var(--border-strong);
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.ledger dl {
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ledger dt {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.ledger dd {
+  margin: 2px 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.ledger dd.is-due {
+  color: var(--warning);
+}
+.ledger .text-link {
+  display: inline-block;
+  margin-top: 12px;
+}
+.text-link {
+  color: var(--accent-dark);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.text-link:hover {
+  text-decoration: underline;
+}
+@media (max-width: 900px) {
+  .desk-body {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .ledger {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border-strong);
+    padding-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .desk-head h1 {
+    font-size: 1.5rem;
+  }
+}
+@media (max-width: 520px) {
+  .desk-head .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .queue-row {
+    grid-template-columns: minmax(0, 1fr) 18px;
+    row-gap: 6px;
+  }
+  .queue-row time {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .recent li a {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .recent-meta {
+    display: none;
+  }
 }
 .btn-white {
   background: #fff;
@@ -1199,8 +1391,8 @@ a.list-item:hover {
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: none;
+  letter-spacing: 0;
   margin-bottom: 4px;
 }
 .info-list dd {
@@ -1287,90 +1479,124 @@ a.list-item:hover {
   position: sticky;
   top: 20px;
 }
+/* Gravador: a assinatura do produto. O verde-água aparece aqui e só aqui: é a cor da voz. */
 .recorder {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: 18px;
+  padding: 18px 20px;
   border-radius: var(--radius);
   background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border);
 }
 .recorder.live {
-  background: #fff5f5;
-  border: 1px solid #fecaca;
+  background: #effaf8;
+  border-color: #9fe1d9;
 }
 .mic-btn {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   display: grid;
   place-items: center;
   background: var(--accent-dark);
   color: #fff;
-  box-shadow: 0 8px 18px -8px rgba(3, 185, 170, 0.8);
-  transition: transform 0.15s, background 0.15s;
   flex-shrink: 0;
+  transition: transform 0.15s, background 0.15s;
 }
 .mic-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+  background: #036e65;
+}
+.mic-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.mic-btn:focus-visible {
+  outline: 3px solid var(--primary-ring);
+  outline-offset: 3px;
 }
 .mic-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
+/* Gravando, o botão vira "parar": azul-tinta, quadrado dentro do círculo. */
 .mic-btn.live {
-  background: var(--danger);
-  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
-  animation: ring 1.6s infinite;
+  background: var(--primary);
 }
-@keyframes ring {
-  70% {
-    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
-  }
+.mic-btn.live:hover {
+  background: var(--primary-hover);
 }
-.recorder .status strong {
-  display: block;
-  font-size: 0.95rem;
-}
-.recorder .status small {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-.rec-side {
-  margin-left: auto;
+.recorder-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
   gap: 6px;
 }
-/* Nível do microfone: mostra que o áudio está chegando. */
-.level-meter {
-  width: 64px;
-  height: 5px;
-  border-radius: 99px;
-  background: #fecaca;
-  overflow: hidden;
-  position: relative;
+.recorder .status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
-.level-meter::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--danger);
-  transform-origin: left;
-  transform: scaleX(var(--level, 0));
-  transition: transform 0.1s linear;
+.recorder .status strong {
+  font-size: 1rem;
+}
+.recorder small {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.voice-ribbon {
+  width: 100%;
+  height: 40px;
+  display: block;
+}
+.voice-ribbon rect {
+  fill: var(--border-strong);
+}
+.voice-ribbon.is-live rect {
+  fill: var(--accent-dark);
 }
 .timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: var(--danger);
-  font-size: 1.05rem;
+  color: var(--text);
+}
+/* O ponto vermelho é a convenção universal de "está gravando". */
+.rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: rec-blink 1.4s steps(2, jump-none) infinite;
+}
+@keyframes rec-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-dot {
+    animation: none;
+  }
+}
+/* O que a IA escreveu é documento do prontuário: serifa, entrelinha de leitura, margem de papel. */
+.textarea.doc-text {
+  font-family: var(--font-doc);
+  font-size: 1.04rem;
+  line-height: 1.65;
+  color: #1c2940;
+  padding: 22px 26px;
+  background: #fff;
+  border-color: var(--border-strong);
+  border-radius: var(--radius);
+}
+.textarea.doc-text:disabled {
+  color: #1c2940;
+  background: var(--surface-2);
 }
 .save-state {
   display: inline-flex;
@@ -1450,8 +1676,8 @@ a.list-item:hover {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 .divider-label::after {
   content: "";
@@ -2123,4 +2349,215 @@ a.list-item:hover {
   .stat-card .hint {
     display: none;
   }
+}
+
+/* ============ Pacientes: idade como dado principal ============ */
+.age-cell strong,
+.guardian-cell span {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+.age-cell small,
+.guardian-cell small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ Ficha do paciente: linha do tempo das consultas ============ */
+/* A linha liga as consultas em ordem; o ponto é azul-tinta na puericultura (rotina)
+   e contornado na consulta geral (intercorrência). A idade na data é o rótulo de cada marco. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 8px;
+  position: relative;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 27px;
+  top: 22px;
+  bottom: 22px;
+  width: 2px;
+  background: var(--border);
+}
+.timeline-item {
+  position: relative;
+}
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 4px var(--surface);
+  z-index: 1;
+}
+.timeline-item.is-urgencia::before {
+  background: var(--surface);
+  border: 2px solid var(--primary);
+}
+.timeline-row {
+  display: grid;
+  grid-template-columns: minmax(150px, max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px 12px 52px;
+  color: var(--text);
+}
+a.timeline-row:hover {
+  background: var(--surface-2);
+}
+a.timeline-row:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: -2px;
+}
+.timeline-age {
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-body strong {
+  display: block;
+  font-weight: 600;
+}
+.timeline-body small {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+@media (max-width: 560px) {
+  .timeline-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .timeline-age {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ============ Financeiro: extrato do mês ============ */
+.statement {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+}
+.statement-sum {
+  flex: 1 1 520px;
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 20px 24px;
+  flex-wrap: wrap;
+}
+.statement span:not(.statement-op),
+.statement-due span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.statement strong {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.statement-op {
+  color: var(--subtle);
+  font-size: 1.5rem;
+  line-height: 1.25;
+  padding-bottom: 1px;
+}
+.statement-total {
+  padding-left: 20px;
+  border-left: 2px solid var(--text);
+}
+.statement-due {
+  flex: 0 1 240px;
+  padding: 20px 24px;
+  border-left: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.statement-due strong {
+  color: var(--warning);
+}
+.statement-due small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+@media (max-width: 640px) {
+  .statement-sum {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .statement-op {
+    display: none;
+  }
+  .statement-total {
+    padding-left: 0;
+    border-left: none;
+    border-top: 2px solid var(--text);
+    padding-top: 8px;
+    width: 100%;
+  }
+  .statement-due {
+    flex-basis: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* A receita também é documento: serifa, como a receita impressa. */
+.rx-item strong,
+.rx-item .dose {
+  font-family: var(--font-doc);
+}
+.rx-item strong {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.rx-item .dose {
+  font-size: 1rem;
+}
+
+.cell-stack strong {
+  display: block;
+}
+.cell-stack small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin-top: 1px;
+}
+.table td.nowrap {
+  white-space: nowrap;
+}
+.table td.primary-cell {
+  min-width: 170px;
+}
+/* Excluir fica discreto na lista e só fica vermelho quando a pessoa aponta para ele. */
+.actions-cell .btn-danger-ghost {
+  color: var(--subtle);
+}
+.actions-cell .btn-danger-ghost:hover:not(:disabled),
+.actions-cell .btn-danger-ghost:focus-visible {
+  color: var(--danger);
 }

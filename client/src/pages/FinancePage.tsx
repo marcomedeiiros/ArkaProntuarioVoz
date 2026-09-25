@@ -1,19 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CircleDollarSign,
-  Hourglass,
-  Plus,
-  Receipt,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Receipt, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { brl, capitalize, currentMonth, dateBR, METHOD_LABEL } from "../format";
 import { TransactionForm } from "../components/TransactionForm";
-import { EmptyState, Modal, PageHeader, PageLoader, StatCard } from "../components/ui";
+import { EmptyState, Modal, PageHeader, PageLoader } from "../components/ui";
 import { useToast } from "../components/toast";
 import type { FinanceSummary, Transaction, TransactionType } from "../types";
 
@@ -85,23 +75,36 @@ export function FinancePage() {
         }
       />
 
-      <div className="stats-grid">
-        <StatCard icon={TrendingUp} label="Entradas" value={summary ? brl(summary.income) : "..."} tone="green" />
-        <StatCard icon={TrendingDown} label="Saídas" value={summary ? brl(summary.expense) : "..."} tone="red" />
-        <StatCard
-          icon={CircleDollarSign}
-          label="Saldo do mês"
-          value={summary ? brl(summary.balance) : "..."}
-          tone="blue"
-        />
-        <StatCard
-          icon={Hourglass}
-          label="A receber"
-          value={summary ? brl(summary.pendingIncome) : "..."}
-          hint={summary && summary.pendingExpense > 0 ? `A pagar: ${brl(summary.pendingExpense)}` : undefined}
-          tone="amber"
-        />
-      </div>
+      {/* Extrato do mês: a conta está escrita na tela (entradas - saídas = saldo). */}
+      <section className="statement" aria-label="Resumo do mês">
+        <div className="statement-sum">
+          <div>
+            <span>Entradas</span>
+            <strong>{summary ? brl(summary.income) : "..."}</strong>
+          </div>
+          <span className="statement-op" aria-hidden="true">
+            −
+          </span>
+          <div>
+            <span>Saídas</span>
+            <strong>{summary ? brl(summary.expense) : "..."}</strong>
+          </div>
+          <span className="statement-op" aria-hidden="true">
+            =
+          </span>
+          <div className="statement-total">
+            <span>Saldo do mês</span>
+            <strong className={summary && summary.balance < 0 ? "amount-out" : undefined}>
+              {summary ? brl(summary.balance) : "..."}
+            </strong>
+          </div>
+        </div>
+        <div className="statement-due">
+          <span>A receber</span>
+          <strong>{summary ? brl(summary.pendingIncome) : "..."}</strong>
+          {summary && summary.pendingExpense > 0 && <small>A pagar: {brl(summary.pendingExpense)}</small>}
+        </div>
+      </section>
 
       <div className="grid-main-side">
         <section className="card">
@@ -138,7 +141,6 @@ export function FinancePage() {
                   <tr>
                     <th>Descrição</th>
                     <th>Data</th>
-                    <th>Forma</th>
                     <th>Situação</th>
                     <th className="num">Valor</th>
                     <th />
@@ -148,18 +150,15 @@ export function FinancePage() {
                   {visible.map((t) => (
                     <tr key={t.id}>
                       <td className="primary-cell">
-                        <div className="cell-main">
-                          <div className={`stat-icon ${t.type === "INCOME" ? "tone-green" : "tone-red"}`} style={{ width: 34, height: 34 }}>
-                            {t.type === "INCOME" ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                          </div>
-                          <div>
-                            <strong>{t.category.name}</strong>
-                            <small>{[t.patient?.name, t.description].filter(Boolean).join(" · ") || "Sem descrição"}</small>
-                          </div>
+                        <div className="cell-stack">
+                          <strong>{t.category.name}</strong>
+                          <small>{[t.patient?.name, t.description].filter(Boolean).join(", ") || "Sem descrição"}</small>
                         </div>
                       </td>
-                      <td data-label="Data">{dateBR(t.date)}</td>
-                      <td data-label="Forma">{METHOD_LABEL[t.method]}</td>
+                      <td data-label="Data" className="nowrap cell-stack">
+                        <span>{dateBR(t.date)}</span>
+                        <small>{METHOD_LABEL[t.method]}</small>
+                      </td>
                       <td data-label="Situação">
                         <button className="status-toggle" onClick={() => toggleStatus(t)} title="Clique para alterar">
                           <span className={`badge ${t.status === "PAID" ? "badge-success" : "badge-warning"}`}>
@@ -168,7 +167,7 @@ export function FinancePage() {
                         </button>
                       </td>
                       <td data-label="Valor" className={`num ${t.type === "INCOME" ? "amount-in" : "amount-out"}`}>
-                        {t.type === "EXPENSE" ? "- " : "+ "}
+                        {t.type === "EXPENSE" ? "− " : "+ "}
                         {brl(t.amount)}
                       </td>
                       <td className="actions-cell">

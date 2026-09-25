@@ -8,15 +8,29 @@ export const dateBR = (iso: string) => new Date(iso).toLocaleDateString("pt-BR",
 export const dateTimeBR = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-export function ageLabel(birthIso: string): string {
+/**
+ * Idade como pediatra fala: dias no primeiro mês, meses até 2 anos, "anos e meses" até 6 e,
+ * depois disso, só anos. Com `atIso`, calcula a idade que a criança tinha naquela data.
+ */
+export function ageLabel(birthIso: string, atIso?: string): string {
   const birth = new Date(birthIso);
-  const now = new Date();
-  let months = (now.getFullYear() - birth.getUTCFullYear()) * 12 + (now.getMonth() - birth.getUTCMonth());
-  if (now.getDate() < birth.getUTCDate()) months--;
-  if (months < 1) return "recém-nascido";
-  if (months < 24) return `${months} ${months === 1 ? "mês" : "meses"}`;
+  const at = atIso ? new Date(atIso) : new Date();
+  let months = (at.getFullYear() - birth.getUTCFullYear()) * 12 + (at.getMonth() - birth.getUTCMonth());
+  if (at.getDate() < birth.getUTCDate()) months--;
+  if (months < 1) {
+    const days = Math.max(0, Math.floor((at.getTime() - birth.getTime()) / 86_400_000));
+    return days === 0 ? "recém-nascido" : plural(days, "dia", "dias");
+  }
+  if (months < 24) return plural(months, "mês", "meses");
   const years = Math.floor(months / 12);
-  return `${years} anos`;
+  const rest = months % 12;
+  if (years < 6 && rest > 0) return `${plural(years, "ano", "anos")} e ${plural(rest, "mês", "meses")}`;
+  return plural(years, "ano", "anos");
+}
+
+/** "1 paciente", "6 pacientes" (nada de "paciente(s)"). */
+export function plural(n: number, one: string, many: string) {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 export const TEMPLATE_LABEL: Record<Template, string> = {

@@ -70,7 +70,9 @@ export function StatusBadge({ status }: { status: ConsultationStatus }) {
   return <span className={`badge ${STATUS_TONE[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
-const AVATAR_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#0d9488", "#4f46e5", "#0891b2", "#65a30d"];
+// Tons da própria marca (tinta, verde-água, ardósia): cada pessoa mantém a sua cor, mas as iniciais
+// não competem com os sinais que importam (a faixa âmbar de "revisar", o vermelho de alergia).
+const AVATAR_COLORS = ["#13285a", "#1f4f7a", "#04877c", "#3b4a63", "#2c6788", "#0f6660"];
 
 export function Avatar({ name, size }: { name: string; size?: "sm" | "lg" }) {
   const initials = name

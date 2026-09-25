@@ -93,7 +93,7 @@ export function AccountPage() {
                   <h2 style={{ fontSize: "1.1rem" }}>{user.name}</h2>
                   <p className="muted small">{user.email}</p>
                   <p className="muted small">
-                    {ROLE_LABEL[user.role]} · {clinic.name}
+                    {ROLE_LABEL[user.role]}, {clinic.name}
                   </p>
                 </div>
               </div>

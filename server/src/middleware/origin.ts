@@ -14,8 +14,24 @@ export function requireSameOrigin(req: Request, _res: Response, next: NextFuncti
 
   const allowed = new URL(env.CLIENT_URL).origin;
   const origin = req.get("origin") ?? originOf(req.get("referer"));
-  if (origin !== undefined && origin !== allowed) throw new HttpError(403, "Origem da requisição não permitida");
+  if (origin !== undefined && origin !== allowed && !isLocalDevOrigin(origin)) {
+    throw new HttpError(403, "Origem da requisição não permitida");
+  }
   next();
+}
+
+/**
+ * Só em desenvolvimento: o site local pode estar em qualquer porta de localhost (ex.: o Vite
+ * pula para a 5174 quando a 5173 está ocupada). Em produção, apenas o CLIENT_URL vale.
+ */
+function isLocalDevOrigin(origin: string) {
+  if (env.NODE_ENV !== "development") return false;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+  } catch {
+    return false;
+  }
 }
 
 function originOf(url: string | undefined): string | undefined {

@@ -1,16 +1,33 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, CircleDollarSign, ClipboardList, Hourglass, Stethoscope, UserPlus, Wallet } from "lucide-react";
+import { ChevronRight, Stethoscope, UserPlus } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../auth";
-import { brl, capitalize, dateTimeBR, TEMPLATE_LABEL } from "../format";
-import { Avatar, EmptyState, StatCard, StatusBadge } from "../components/ui";
-import type { DashboardData } from "../types";
+import { brl, capitalize, TEMPLATE_LABEL } from "../format";
+import { PageLoader } from "../components/ui";
+import type { ConsultationStatus, DashboardData } from "../types";
 
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
 }
+
+/** "hoje, 11:00", "ontem, 14:00" ou "22/09, 09:00": o que importa numa fila é quando foi. */
+function when(iso: string) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (days === 0) return `hoje, ${time}`;
+  if (days === 1) return `ontem, ${time}`;
+  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}, ${time}`;
+}
+
+/** O que falta fazer em cada etapa, dito do ponto de vista de quem atende. */
+const NEXT_STEP: Record<ConsultationStatus, string> = {
+  DRAFT: "Falta gerar os documentos",
+  GENERATED: "Revisar o que a IA escreveu",
+  FINALIZED: "Finalizada",
+};
 
 export function DashboardPage() {
   const { session } = useAuth();
@@ -22,144 +39,116 @@ export function DashboardPage() {
     api.get<DashboardData>("/dashboard").then(setData);
   }, []);
 
-  const summary = data?.finance ?? null;
-  const list = data?.clinical?.recent ?? [];
-  const toReview = data?.clinical?.pending ?? [];
-  const todayCount = data?.clinical?.todayCount ?? 0;
-  const pendingCount = data?.clinical?.pendingCount ?? 0;
+  if (!data) return <PageLoader />;
+
+  const finance = data.finance;
+  const queue = data.clinical?.pending ?? [];
+  const recent = (data.clinical?.recent ?? []).filter((c) => c.status === "FINALIZED");
   const firstName = session!.user.name.replace(/^(Dra?\.)\s+/i, "").split(" ")[0];
-  const todayLabel = capitalize(new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
+  const today = capitalize(new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }));
 
   return (
-    <>
-      <section className="welcome">
+    <div className="desk">
+      <header className="desk-head">
         <div>
           <h1>
             {greeting()}, {firstName}
           </h1>
-          <p>{todayLabel}</p>
+          <p>{today}</p>
         </div>
-        <div className="btn-row">
-          {clinical ? (
-            <Link to="/pacientes" className="btn btn-white btn-lg">
-              <Stethoscope size={18} /> Nova consulta
-            </Link>
-          ) : (
-            <Link to="/pacientes" className="btn btn-white btn-lg">
-              <UserPlus size={18} /> Pacientes
-            </Link>
-          )}
-          <Link to="/financeiro" className="btn btn-glass btn-lg">
-            <Wallet size={18} /> Financeiro
-          </Link>
-        </div>
-      </section>
+        <Link to="/pacientes" className="btn btn-primary btn-lg">
+          {clinical ? <Stethoscope size={18} /> : <UserPlus size={18} />}
+          {clinical ? "Nova consulta" : "Pacientes"}
+        </Link>
+      </header>
 
-      <div className="stats-grid">
+      <div className="desk-body">
         {clinical && (
-          <>
-            <StatCard icon={CalendarDays} label="Consultas hoje" value={todayCount} tone="blue" />
-            <StatCard
-              icon={Hourglass}
-              label="Pendentes de revisão"
-              value={pendingCount}
-              hint="Rascunhos e geradas pela IA"
-              tone="amber"
-            />
-          </>
+          <main className="desk-main">
+            <section className="queue" aria-labelledby="queue-title">
+              <h2 id="queue-title">
+                Para revisar <span className="queue-count">{data.clinical!.pendingCount}</span>
+              </h2>
+              {queue.length === 0 ? (
+                <p className="queue-empty">
+                  Nada esperando por você. Para começar, abra a ficha de um paciente e inicie a consulta.
+                </p>
+              ) : (
+                <ol className="queue-list">
+                  {queue.slice(0, 8).map((c) => (
+                    <li key={c.id}>
+                      <Link to={`/consultas/${c.id}`} className={`queue-row is-${c.status.toLowerCase()}`}>
+                        <span className="queue-who">
+                          <strong>{c.patient.name}</strong>
+                          <span>
+                            {TEMPLATE_LABEL[c.template]}. {NEXT_STEP[c.status]}
+                          </span>
+                        </span>
+                        <time dateTime={c.createdAt}>{when(c.createdAt)}</time>
+                        <ChevronRight size={18} aria-hidden="true" />
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+
+            {recent.length > 0 && (
+              <section className="recent" aria-labelledby="recent-title">
+                <h2 id="recent-title">Finalizadas recentemente</h2>
+                <ul>
+                  {recent.slice(0, 5).map((c) => (
+                    <li key={c.id}>
+                      <Link to={`/consultas/${c.id}`}>
+                        <span>{c.patient.name}</span>
+                        <span className="recent-meta">{TEMPLATE_LABEL[c.template]}</span>
+                        <time dateTime={c.createdAt}>{when(c.createdAt)}</time>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/consultas" className="text-link">
+                  Ver todas as consultas
+                </Link>
+              </section>
+            )}
+          </main>
         )}
-        <StatCard
-          icon={CircleDollarSign}
-          label="Receita do mês"
-          value={summary ? brl(summary.income) : "..."}
-          tone="green"
-        />
-        <StatCard
-          icon={Wallet}
-          label="A receber"
-          value={summary ? brl(summary.pendingIncome) : "..."}
-          hint="Lançamentos pendentes"
-          tone="violet"
-        />
+
+        <aside className="ledger" aria-label="Resumo">
+          {clinical && (
+            <section>
+              <h2>Hoje</h2>
+              <dl>
+                <div>
+                  <dt>Consultas</dt>
+                  <dd>{data.clinical!.todayCount}</dd>
+                </div>
+                <div>
+                  <dt>Esperando revisão</dt>
+                  <dd>{data.clinical!.pendingCount}</dd>
+                </div>
+              </dl>
+            </section>
+          )}
+          <section>
+            <h2>{capitalize(new Date().toLocaleDateString("pt-BR", { month: "long" }))}</h2>
+            <dl>
+              <div>
+                <dt>Recebido</dt>
+                <dd>{brl(finance.income)}</dd>
+              </div>
+              <div>
+                <dt>A receber</dt>
+                <dd className={finance.pendingIncome > 0 ? "is-due" : undefined}>{brl(finance.pendingIncome)}</dd>
+              </div>
+            </dl>
+            <Link to="/financeiro" className="text-link">
+              Abrir financeiro
+            </Link>
+          </section>
+        </aside>
       </div>
-
-      {clinical && (
-        <div className="grid-2">
-          <section className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">
-                  <Hourglass size={18} /> Aguardando você
-                </div>
-                <div className="card-subtitle">Consultas que ainda não foram finalizadas</div>
-              </div>
-            </div>
-            {toReview.length === 0 ? (
-              <EmptyState icon={ClipboardList} title="Tudo em dia" text="Nenhuma consulta pendente de revisão" />
-            ) : (
-              <div className="list">
-                {toReview.slice(0, 6).map((c) => (
-                  <Link key={c.id} to={`/consultas/${c.id}`} className="list-item">
-                    <Avatar name={c.patient.name} size="sm" />
-                    <div className="grow">
-                      <strong>{c.patient.name}</strong>
-                      <small>{TEMPLATE_LABEL[c.template]}</small>
-                    </div>
-                    <div className="end">
-                      <StatusBadge status={c.status} />
-                      <small>{dateTimeBR(c.createdAt)}</small>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">
-                  <ClipboardList size={18} /> Consultas recentes
-                </div>
-                <div className="card-subtitle">Últimos atendimentos da clínica</div>
-              </div>
-              <Link to="/consultas" className="btn btn-ghost btn-sm">
-                Ver todas
-              </Link>
-            </div>
-            {list.length === 0 ? (
-              <EmptyState
-                icon={Stethoscope}
-                title="Nenhuma consulta ainda"
-                text="Abra o cadastro de um paciente para iniciar a primeira consulta"
-                action={
-                  <Link to="/pacientes" className="btn btn-primary">
-                    Ir para pacientes
-                  </Link>
-                }
-              />
-            ) : (
-              <div className="list">
-                {list.slice(0, 6).map((c) => (
-                  <Link key={c.id} to={`/consultas/${c.id}`} className="list-item">
-                    <Avatar name={c.patient.name} size="sm" />
-                    <div className="grow">
-                      <strong>{c.patient.name}</strong>
-                      <small>
-                        {TEMPLATE_LABEL[c.template]} · {c.doctor.name}
-                      </small>
-                    </div>
-                    <div className="end">
-                      <StatusBadge status={c.status} />
-                      <small>{dateTimeBR(c.createdAt)}</small>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
