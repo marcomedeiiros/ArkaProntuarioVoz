@@ -19,7 +19,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     console.error(`[banco] ${dbHint(err.message)}`);
     // Sem isso o Prisma fica preso na falha até reiniciar a API; assim, reconecta quando o banco voltar.
     void prisma.$disconnect().catch(() => {});
-    return res.status(503).json({ error: "Banco de dados indisponível no momento. Tente de novo em instantes." });
+    return res.status(503).json({ error: "Banco de dados indisponível no momento tente de novo em instantes" });
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2025") return res.status(404).json({ error: "Registro não encontrado" });
@@ -38,12 +38,12 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
 export function dbHint(message: string) {
   if (/Authentication failed|credentials .* are not valid/i.test(message)) {
     return (
-      "O Postgres recusou o usuário/senha do DATABASE_URL. Causa provável: outro Postgres (de outra cópia do " +
-      "projeto) está na mesma porta. Pare o outro db:local e rode o desta pasta."
+      "O Postgres recusou o usuário/senha do DATABASE_URL causa provável: outro Postgres (de outra cópia do " +
+      "projeto) está na mesma porta pare o outro db:local e rode o desta pasta"
     );
   }
   if (/Can't reach database server/i.test(message)) {
-    return "O Postgres não está rodando. Rode `npm run db:local` (ou `npm run db:up`).";
+    return "O Postgres não está rodando rode `npm run db:local` (ou `npm run db:up`)";
   }
   return message.split("\n").filter(Boolean).slice(-1)[0] ?? "falha ao conectar ao banco";
 }

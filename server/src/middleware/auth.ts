@@ -26,11 +26,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   });
   if (!user || !user.active) {
     clearSessionCookie(res);
-    throw new HttpError(401, "Acesso desativado. Fale com a administração da clínica.");
+    throw new HttpError(401, "Acesso desativado fale com a administração da clínica");
   }
   if (user.tokenVersion !== claims.ver) {
     clearSessionCookie(res);
-    throw new HttpError(401, "Sua sessão foi encerrada. Faça login novamente.");
+    throw new HttpError(401, "Sua sessão foi encerrada faça login novamente");
   }
 
   req.auth = { userId: user.id, clinicId: user.clinicId, role: user.role };

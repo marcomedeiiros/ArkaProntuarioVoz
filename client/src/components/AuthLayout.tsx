@@ -36,7 +36,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
             </li>
             <li>
               <Sparkles size={18} />
-              <span>Evolução, receita e guia para os pais gerados em segundos.</span>
+              <span>Evolução, receita e guia para os pais gerados em segundos</span>
             </li>
             <li>
               <Heart size={18} />
