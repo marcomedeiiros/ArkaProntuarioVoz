@@ -14,9 +14,9 @@ const ROLE_TONE: Record<Role, string> = {
 };
 
 const ROLE_HELP: Record<Role, string> = {
-  ADMIN: "Acesso total, incluindo equipe e configurações.",
-  DOCTOR: "Consultas, pacientes e financeiro.",
-  SECRETARY: "Pacientes e financeiro. Não acessa as consultas clínicas.",
+  ADMIN: "Acesso total, incluindo equipe e configurações",
+  DOCTOR: "Consultas, pacientes e financeiro",
+  SECRETARY: "Pacientes e financeiro não acessa as consultas clínicas",
 };
 
 export function TeamPage() {
