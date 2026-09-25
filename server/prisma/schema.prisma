@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  SECRETARY
+}
+
+enum Sex {
+  M
+  F
+}
+
+enum ConsultationTemplate {
+  PUERICULTURA
+  URGENCIA
+}
+
+enum ConsultationStatus {
+  DRAFT
+  GENERATED
+  FINALIZED
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  PIX
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  DINHEIRO
+  CONVENIO
+  OUTRO
+}
+
+enum TransactionStatus {
+  PAID
+  PENDING
+}
+
+model Clinic {
+  id            String              @id @default(cuid())
+  name          String
+  createdAt     DateTime            @default(now())
+  users         User[]
+  patients      Patient[]
+  consultations Consultation[]
+  categories    FinancialCategory[]
+  transactions  Transaction[]
+}
+
+model User {
+  id             String               @id @default(cuid())
+  clinicId       String
+  clinic         Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  name           String
+  email          String               @unique
+  passwordHash   String
+  role           Role
+  active         Boolean              @default(true)
+  /// Incrementado para invalidar na hora todos os tokens da pessoa
+  /// (sair de todos os dispositivos, troca de senha, desativação).
+  tokenVersion   Int                  @default(0)
+  createdAt      DateTime             @default(now())
+  consultations  Consultation[]
+  passwordResets PasswordResetToken[]
+}
+
+/// Link de "esqueci a senha". Só o hash SHA-256 do token fica no banco: quem ler o banco não
+/// consegue usar o link. Vale uma vez e expira em poucos minutos.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Patient {
+  id            String         @id @default(cuid())
+  clinicId      String
+  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  name          String
+  birthDate     DateTime
+  sex           Sex
+  guardianName  String
+  guardianPhone String
+  allergies     String?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  consultations Consultation[]
+  transactions  Transaction[]
+
+  @@index([clinicId, name])
+}
+
+model Consultation {
+  id                String               @id @default(cuid())
+  clinicId          String
+  clinic            Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId          String
+  doctor            User                 @relation(fields: [doctorId], references: [id])
+  template          ConsultationTemplate
+  status            ConsultationStatus   @default(DRAFT)
+  weightKg          Decimal?             @db.Decimal(6, 3)
+  heightCm          Decimal?             @db.Decimal(5, 1)
+  transcript        String               @default("")
+  evolution         String?
+  prescription      Json?
+  prescriptionNotes String?
+  parentGuide       String?
+  alerts            Json?
+  generatedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  transactions      Transaction[]
+
+  @@index([clinicId, createdAt])
+}
+
+model FinancialCategory {
+  id           String          @id @default(cuid())
+  clinicId     String
+  clinic       Clinic          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  name         String
+  type         TransactionType
+  transactions Transaction[]
+
+  @@unique([clinicId, name, type])
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  clinicId       String
+  clinic         Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  type           TransactionType
+  status         TransactionStatus @default(PAID)
+  amount         Decimal           @db.Decimal(10, 2)
+  method         PaymentMethod
+  date           DateTime
+  description    String?
+  categoryId     String
+  category       FinancialCategory @relation(fields: [categoryId], references: [id])
+  patientId      String?
+  patient        Patient?          @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  consultationId String?
+  consultation   Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+
+  @@index([clinicId, date])
+}

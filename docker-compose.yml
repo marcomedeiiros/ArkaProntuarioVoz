@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:17
+    # As credenciais vêm do .env da raiz (veja .env.example). Nada de senha no repositório.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env da raiz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env da raiz}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env da raiz}
+    ports:
+      # Só aceita conexões desta máquina.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

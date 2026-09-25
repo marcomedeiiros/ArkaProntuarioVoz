@@ -1,0 +1,15 @@
+{
+  "name": "pedscribe",
+  "private": true,
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "npm --prefix server run db:migrate",
+    "test": "npm --prefix server test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
