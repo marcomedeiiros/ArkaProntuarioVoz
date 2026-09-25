@@ -5,6 +5,7 @@
 //   npm run setup:env -- --rotate-jwt      troca o JWT_SECRET mesmo que já seja forte (derruba todas as sessões)
 //   npm run setup:env -- --anthropic-key   pede a chave da Anthropic sem mostrá-la na tela (não fica no histórico)
 //   npm run setup:env -- --resend          configura o envio de e-mails pelo Resend (pede a API key sem mostrá-la)
+//   npm run setup:env -- --admin           guarda o administrador desta máquina (a API cria a conta ao subir)
 import { randomBytes } from "node:crypto";
 import { createInterface } from "node:readline";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -110,6 +111,32 @@ if (args.has("--resend")) {
         "Para enviar para qualquer pessoa, verifique seu domínio em resend.com > Domains e use um remetente dele.",
     );
   }
+}
+
+if (args.has("--admin")) {
+  console.log("Administrador desta máquina: a API cria a conta ao subir, se ela ainda não existir no banco.");
+  const current = get("BOOTSTRAP_ADMIN_EMAIL") || "";
+  const email = ((await ask(`E-mail do administrador${current ? ` [${current}]` : ""}: `)) || current).toLowerCase();
+  if (!/^[^@\s"]+@[^@\s"]+\.[^@\s"]+$/.test(email)) {
+    console.error("E-mail inválido. Nada foi alterado.");
+    process.exit(1);
+  }
+  const password = await askHidden("Senha (não aparece na tela): ");
+  const again = await askHidden("Repita a senha: ");
+  if (password !== again) {
+    console.error("As senhas não conferem. Nada foi alterado.");
+    process.exit(1);
+  }
+  // Vai entre aspas duplas no .env: aspas e quebras de linha quebrariam o arquivo.
+  if (password.length < 8 || password.length > 72 || /["\r\n]/.test(password)) {
+    console.error("A senha precisa ter de 8 a 72 caracteres (sem aspas duplas). Nada foi alterado.");
+    process.exit(1);
+  }
+  const clinic = (await ask(`Nome da clínica [${get("BOOTSTRAP_CLINIC_NAME") || "Arka Tecnologia"}]: `)) || get("BOOTSTRAP_CLINIC_NAME") || "Arka Tecnologia";
+  set("BOOTSTRAP_ADMIN_EMAIL", email);
+  set("BOOTSTRAP_ADMIN_PASSWORD", password);
+  set("BOOTSTRAP_CLINIC_NAME", clinic);
+  changed.push("BOOTSTRAP_ADMIN_* (reinicie a API para criar a conta)");
 }
 
 // E-mail (redefinição de senha). Em branco no desenvolvimento: as mensagens vão para server/.mail-outbox.

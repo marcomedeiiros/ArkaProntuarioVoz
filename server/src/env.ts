@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 
+const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
+
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,6 +24,12 @@ const EnvSchema = z
       (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
       z.string().default("Prontuário por Voz <nao-responda@localhost>"),
     ),
+    // Administrador criado automaticamente ao subir, se ainda não existir (só nesta máquina: o .env não vai
+    // para o GitHub). Nunca altera uma conta existente, então trocar a senha pela tela continua valendo.
+    BOOTSTRAP_ADMIN_EMAIL: z.preprocess(emptyToUndefined, z.string().optional()),
+    BOOTSTRAP_ADMIN_PASSWORD: z.preprocess(emptyToUndefined, z.string().optional()),
+    BOOTSTRAP_ADMIN_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
+    BOOTSTRAP_CLINIC_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
     // Transcrição local (Whisper). O turbo quantizado em q8 equilibra precisão e velocidade em CPU.
     WHISPER_MODEL: z.string().default("onnx-community/whisper-large-v3-turbo"),
     WHISPER_DTYPE: z.enum(["fp32", "fp16", "q8", "int8", "uint8", "q4", "q4f16", "bnb4"]).default("q8"),

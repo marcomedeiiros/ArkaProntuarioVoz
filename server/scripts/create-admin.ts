@@ -1,13 +1,15 @@
-// Cria um usuário administrador numa clínica existente, sem deixar a senha no código nem no terminal.
+// Cria um usuário administrador, sem deixar a senha no código nem no terminal.
 //
-//   NEW_ADMIN_PASSWORD='...' npm run user:create-admin -- --email pessoa@exemplo.com [--name "Nome"] [--clinic "parte do nome"]
+//   NEW_ADMIN_PASSWORD=... npm run user:create-admin -- --email pessoa@exemplo.com [--name "Nome"] [--clinic "parte do nome"]
+//   NEW_ADMIN_PASSWORD=... npm run user:create-admin -- --email pessoa@exemplo.com --new-clinic "Arka Tecnologia"
 //
 // A senha vem só da variável NEW_ADMIN_PASSWORD (não vai para os argumentos, que ficam visíveis na lista de processos).
-// Sem --clinic, usa a única clínica cadastrada.
+// Sem --clinic, usa a única clínica cadastrada. Com --new-clinic, cria a clínica (se não existir) e põe a pessoa nela.
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../src/lib/prisma";
 import { email as emailSchema, password as passwordSchema } from "../src/lib/validation";
+import { ensureAdmin } from "../src/lib/bootstrap-admin";
 
 function arg(name: string) {
   const i = process.argv.indexOf(`--${name}`);
@@ -19,6 +21,14 @@ async function main() {
   const password = passwordSchema.parse(process.env.NEW_ADMIN_PASSWORD);
   const name = z.string().trim().min(2).max(120).parse(arg("name") ?? "Administrador");
   const clinicFilter = arg("clinic");
+
+  const newClinic = arg("new-clinic");
+  if (newClinic) {
+    const result = await ensureAdmin({ email, password, name, clinicName: newClinic });
+    if (result === "exists") throw new Error("Já existe um usuário com esse e-mail.");
+    console.log(`Administrador ${email} criado na clínica "${newClinic}".`);
+    return;
+  }
 
   const clinics = await prisma.clinic.findMany({
     where: clinicFilter ? { name: { contains: clinicFilter, mode: "insensitive" } } : undefined,

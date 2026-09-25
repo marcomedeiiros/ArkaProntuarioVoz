@@ -6,6 +6,7 @@ npm run setup:env
 
 ```bash
 npm run setup:env -- --anthropic-key --resend
+npm run setup:env -- --admin
 ```
 
 ```bash
