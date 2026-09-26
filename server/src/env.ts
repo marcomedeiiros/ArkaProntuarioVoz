@@ -13,6 +13,8 @@ const EnvSchema = z
     PORT: z.coerce.number().default(3333),
     CLIENT_URL: z.string().default("http://localhost:5173"),
     ANTHROPIC_API_KEY: z.string().trim().default(""),
+    // Chave para criptografar segredos guardados no banco (ex.: chave da IA cadastrada no painel da Arka).
+    SETTINGS_ENCRYPTION_KEY: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
     // Endereço público do front-end, usado nos links enviados por e-mail (ex.: redefinir a senha).
     APP_URL: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
     // E-mail (SMTP). Sem SMTP_HOST em desenvolvimento, as mensagens vão para server/.mail-outbox.
@@ -89,9 +91,4 @@ if (env.NODE_ENV === "development" && isWeakSecret(env.JWT_SECRET)) {
 if (env.NODE_ENV === "production" && !env.SMTP_HOST) {
   console.warn("[aviso] SMTP_HOST não configurado: os e-mails de redefinição de senha não serão enviados.");
 }
-if (env.NODE_ENV !== "test" && anthropicKeyLooksInvalid(env.ANTHROPIC_API_KEY)) {
-  console.warn(
-    "[aviso] ANTHROPIC_API_KEY ausente ou de exemplo: a geração do prontuário vai falhar. " +
-      "Rode `npm --prefix server run setup:env -- --anthropic-key` para colar a sua chave.",
-  );
-}
+// O aviso de chave da IA ausente fica no index.ts: a chave também pode estar cadastrada no painel (banco).

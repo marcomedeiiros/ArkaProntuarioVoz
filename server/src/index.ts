@@ -5,6 +5,8 @@ import { verifyMailer } from "./lib/mailer";
 import { bootstrapAdminFromEnv } from "./lib/bootstrap-admin";
 import { prisma } from "./lib/prisma";
 import { dbHint } from "./middleware/error";
+import { aiKeyStatus } from "./services/ai-settings";
+import { migrateAllTenants, provisionTenant } from "./lib/tenant";
 
 app.listen(env.PORT, () => {
   console.log(`API rodando em http://localhost:${env.PORT}`);
@@ -17,8 +19,23 @@ app.listen(env.PORT, () => {
   // Confere o banco já na subida (o problema aparece aqui, e não só na hora do login) e,
   // com o banco ok, cria o administrador do .env se ele ainda não existir.
   prisma.$queryRaw`SELECT 1`
-    .then(() => {
+    .then(async () => {
       console.log("Banco de dados conectado");
+      // Espaço de dados de cada clínica: aplica migrações novas e prepara clínicas liberadas antes
+      // da separação (copiando os dados antigos delas para o schema próprio).
+      try {
+        const pending = await prisma.clinic.findMany({ where: { status: "ACTIVE", provisionedAt: null }, select: { id: true } });
+        for (const c of pending) await provisionTenant(c.id);
+        const total = await migrateAllTenants();
+        console.log(`Espaços de dados das clínicas prontos (${total})`);
+      } catch (err) {
+        console.error("[aviso] Falha ao preparar os espaços das clínicas:", (err as Error).message);
+      }
+      void aiKeyStatus().then((s) => {
+        if (!s.configured) {
+          console.warn("[aviso] IA sem chave da Anthropic: cadastre em Arka > Configurações (ou ANTHROPIC_API_KEY no .env).");
+        }
+      });
       return bootstrapAdminFromEnv().catch((err) =>
         console.error("[aviso] Não foi possível criar o administrador do .env:", err instanceof Error ? err.message : err),
       );

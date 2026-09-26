@@ -5,7 +5,7 @@
 //   npm run setup:env -- --rotate-jwt      troca o JWT_SECRET mesmo que já seja forte (derruba todas as sessões)
 //   npm run setup:env -- --anthropic-key   pede a chave da Anthropic sem mostrá-la na tela (não fica no histórico)
 //   npm run setup:env -- --resend          configura o envio de e-mails pelo Resend (pede a API key sem mostrá-la)
-//   npm run setup:env -- --admin           guarda o administrador desta máquina (a API cria a conta ao subir)
+//   npm run setup:env -- --admin           guarda a conta da Arka desta máquina (a API cria a conta ao subir)
 import { randomBytes } from "node:crypto";
 import { createInterface } from "node:readline";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -31,6 +31,13 @@ const jwt = get("JWT_SECRET") ?? "";
 if (args.has("--rotate-jwt") || jwt.length < 32 || /troque|example|exemplo|changeme/i.test(jwt)) {
   set("JWT_SECRET", secret(48));
   changed.push("JWT_SECRET (todas as sessões abertas foram encerradas)");
+}
+
+// Chave que criptografa os segredos salvos pelo painel da Arka (ex.: chave da IA). Nunca é trocada
+// sozinha: trocar exigiria cadastrar esses segredos de novo.
+if (!get("SETTINGS_ENCRYPTION_KEY")) {
+  set("SETTINGS_ENCRYPTION_KEY", secret(32));
+  changed.push("SETTINGS_ENCRYPTION_KEY");
 }
 
 let dbUrl = get("DATABASE_URL");
@@ -114,7 +121,7 @@ if (args.has("--resend")) {
 }
 
 if (args.has("--admin")) {
-  console.log("Administrador desta máquina: a API cria a conta ao subir, se ela ainda não existir no banco.");
+  console.log("Conta da Arka desta máquina (libera clínicas e define os módulos): a API cria a conta ao subir, se ela não existir.");
   const current = get("BOOTSTRAP_ADMIN_EMAIL") || "";
   const email = ((await ask(`E-mail do administrador${current ? ` [${current}]` : ""}: `)) || current).toLowerCase();
   if (!/^[^@\s"]+@[^@\s"]+\.[^@\s"]+$/.test(email)) {
@@ -132,10 +139,8 @@ if (args.has("--admin")) {
     console.error("A senha precisa ter de 8 a 72 caracteres (sem aspas duplas). Nada foi alterado.");
     process.exit(1);
   }
-  const clinic = (await ask(`Nome da clínica [${get("BOOTSTRAP_CLINIC_NAME") || "Arka Tecnologia"}]: `)) || get("BOOTSTRAP_CLINIC_NAME") || "Arka Tecnologia";
   set("BOOTSTRAP_ADMIN_EMAIL", email);
   set("BOOTSTRAP_ADMIN_PASSWORD", password);
-  set("BOOTSTRAP_CLINIC_NAME", clinic);
   changed.push("BOOTSTRAP_ADMIN_* (reinicie a API para criar a conta)");
 }
 

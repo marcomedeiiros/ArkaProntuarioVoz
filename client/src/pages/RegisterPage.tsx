@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { LoaderCircle, TriangleAlert } from "lucide-react";
+import { Hourglass, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useAuth } from "../auth";
 import { AuthLayout, PasswordInput } from "../components/AuthLayout";
 
@@ -9,6 +9,7 @@ export function RegisterPage() {
   const [form, setForm] = useState({ clinicName: "", name: "", email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [key]: e.target.value });
@@ -19,11 +20,34 @@ export function RegisterPage() {
     setError(null);
     try {
       await register(form);
+      setSent(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (sent) {
+    return (
+      <AuthLayout>
+        <div className="auth-form" style={{ maxWidth: "none" }}>
+          <div className="auth-icon">
+            <Hourglass size={26} />
+          </div>
+          <div>
+            <h1>Cadastro enviado</h1>
+            <p className="subtitle" style={{ marginTop: 6 }}>
+              A Arka vai analisar o cadastro de <strong>{form.clinicName}</strong> assim que for liberado, você entra com{" "}
+              <strong>{form.email}</strong> e a senha que acabou de criar
+            </p>
+          </div>
+          <Link to="/login" className="btn btn-primary btn-lg btn-block">
+            Ir para o login
+          </Link>
+        </div>
+      </AuthLayout>
+    );
   }
 
   return (
@@ -32,7 +56,7 @@ export function RegisterPage() {
         <div>
           <h1>Criar conta</h1>
           <p className="subtitle" style={{ marginTop: 6 }}>
-            Você será a administradora da clínica e poderá convidar a equipe depois
+            Você será a administradora da clínica depois que a Arka liberar o cadastro, você convida a equipe
           </p>
         </div>
         <label className="field">

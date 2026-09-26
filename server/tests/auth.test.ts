@@ -166,14 +166,34 @@ describe("troca de senha", () => {
 });
 
 describe("cadastro de clínica", () => {
-  it("cria clínica, administradora e categorias, já com sessão aberta", async () => {
+  it("cria clínica, administradora e categorias em análise, sem abrir sessão", async () => {
     const email = `nova.${Date.now()}@teste.dev`;
-    const res = await api().post("/api/auth/register").send({ clinicName: "Consultório Novo", name: "Dra. Nova", email, password: randomPassword() });
+    const password = randomPassword();
+    const res = await api().post("/api/auth/register").send({ clinicName: "Consultório Novo", name: "Dra. Nova", email, password });
     expect(res.status).toBe(201);
-    expect(res.body.user.role).toBe("ADMIN");
-    expect(sessionCookie(res)).toBeDefined();
-    const categories = await prisma.financialCategory.count({ where: { clinicId: res.body.clinic.id } });
-    expect(categories).toBeGreaterThan(5);
+    expect(res.body).toEqual({ status: "PENDING", clinic: "Consultório Novo" });
+    expect(sessionCookie(res)).toBeUndefined();
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { email }, include: { clinic: true } });
+    expect(user.role).toBe("ADMIN");
+    expect(user.platformAdmin).toBe(false);
+    expect(user.clinic!.status).toBe("PENDING");
+    // O espaço de dados (schema) só é criado quando a Arka libera.
+    expect(user.clinic!.provisionedAt).toBeNull();
+
+    // Senha certa, mas clínica em análise: não entra, e a mensagem explica.
+    const login = await api().post("/api/auth/login").send({ email, password });
+    expect(login.status).toBe(403);
+    expect(login.body.error).toContain("em análise");
+    expect(sessionCookie(login)).toBeUndefined();
+  });
+
+  it("não revela a situação da clínica para quem erra a senha", async () => {
+    const email = `oculta.${Date.now()}@teste.dev`;
+    await api().post("/api/auth/register").send({ clinicName: "Clínica Oculta", name: "Pessoa", email, password: randomPassword() });
+    const res = await api().post("/api/auth/login").send({ email, password: "senha-errada-qualquer" });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("E-mail ou senha inválidos");
   });
 
   it("não aceita e-mail repetido nem senha fraca", async () => {

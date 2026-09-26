@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
+import { tenantFor } from "../lib/tenant";
 import { HttpError } from "../lib/http-error";
 import { dateOnly, name, optionalText, phoneBR } from "../lib/validation";
-import type { Actor } from "./policy";
+import { assertPermission, type Actor } from "./policy";
 
 /** Pediatria atende até a adolescência; aceitamos até 21 anos para acompanhar a transição. */
 const MAX_AGE_YEARS = 21;
@@ -24,10 +24,11 @@ const PatientSchema = z.object({
 const SearchSchema = z.string().trim().max(80).optional();
 
 export async function searchPatients(actor: Actor, query: unknown) {
+  assertPermission(actor, "PATIENTS");
+  const db = await tenantFor(actor.clinicId);
   const q = SearchSchema.parse(typeof query === "string" ? query : undefined);
-  return prisma.patient.findMany({
+  return db.patient.findMany({
     where: {
-      clinicId: actor.clinicId,
       ...(q && {
         OR: [
           { name: { contains: q, mode: "insensitive" } },
@@ -41,28 +42,35 @@ export async function searchPatients(actor: Actor, query: unknown) {
 }
 
 export async function registerPatient(actor: Actor, input: unknown) {
+  assertPermission(actor, "PATIENTS");
+  const db = await tenantFor(actor.clinicId);
   const data = PatientSchema.parse(input);
-  return prisma.patient.create({ data: { ...data, clinicId: actor.clinicId } });
+  return db.patient.create({ data: { ...data } });
 }
 
 /** Ficha do paciente com o histórico. O histórico traz só metadados (sem conteúdo clínico). */
 export async function getPatientRecord(actor: Actor, patientId: string) {
-  const patient = await prisma.patient.findFirst({
-    where: { id: patientId, clinicId: actor.clinicId },
+  assertPermission(actor, "PATIENTS");
+  const db = await tenantFor(actor.clinicId);
+  const patient = await db.patient.findFirst({
+    where: { id: patientId },
     include: {
       consultations: {
         orderBy: { createdAt: "desc" },
-        select: { id: true, template: true, status: true, createdAt: true, doctor: { select: { name: true } } },
+        select: { id: true, template: true, status: true, createdAt: true, doctorName: true },
       },
     },
   });
   if (!patient) throw new HttpError(404, "Paciente não encontrado");
-  return patient;
+  const { consultations, ...rest } = patient;
+  return { ...rest, consultations: consultations.map(({ doctorName, ...c }) => ({ ...c, doctor: { name: doctorName } })) };
 }
 
 export async function updatePatient(actor: Actor, patientId: string, input: unknown) {
+  assertPermission(actor, "PATIENTS");
+  const db = await tenantFor(actor.clinicId);
   const data = PatientSchema.parse(input);
-  const { count } = await prisma.patient.updateMany({ where: { id: patientId, clinicId: actor.clinicId }, data });
+  const { count } = await db.patient.updateMany({ where: { id: patientId }, data });
   if (!count) throw new HttpError(404, "Paciente não encontrado");
-  return prisma.patient.findUniqueOrThrow({ where: { id: patientId } });
+  return db.patient.findUniqueOrThrow({ where: { id: patientId } });
 }

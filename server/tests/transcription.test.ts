@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, createClinic, loginAs, prisma, resetDb, type ClinicFixture } from "./helpers";
+import { api, createClinic, loginAs, prisma, resetDb, type ClinicFixture, tenantDb } from "./helpers";
 
 // O Whisper é simulado: os testes não carregam o modelo (gigabytes) nem gastam CPU.
 vi.mock("../src/services/transcriber", async (importOriginal) => ({
@@ -51,7 +51,7 @@ describe("transcrição no servidor", () => {
     transcribeMock.mockResolvedValueOnce("Sem vômitos.");
     expect((await send(doctor, pcm(2))).status).toBe(200);
 
-    const saved = await prisma.consultation.findUniqueOrThrow({ where: { id: consultationId } });
+    const saved = await tenantDb(c.clinic.id).consultation.findUniqueOrThrow({ where: { id: consultationId } });
     expect(saved.transcript).toBe("Febre desde ontem, trinta e oito e meio. Sem vômitos.");
   });
 
@@ -60,11 +60,11 @@ describe("transcrição no servidor", () => {
     const start = await doctor.post("/api/consultations").send({ patientId: c.patient.id, template: "URGENCIA" });
     transcribeMock.mockImplementationOnce(async () => {
       // A médica corrige o texto no meio da transcrição.
-      await prisma.consultation.update({ where: { id: start.body.id }, data: { transcript: "Texto corrigido." } });
+      await tenantDb(c.clinic.id).consultation.update({ where: { id: start.body.id }, data: { transcript: "Texto corrigido." } });
       return "Trecho novo.";
     });
     expect((await send(doctor, pcm(2), start.body.id)).status).toBe(200);
-    const saved = await prisma.consultation.findUniqueOrThrow({ where: { id: start.body.id } });
+    const saved = await tenantDb(c.clinic.id).consultation.findUniqueOrThrow({ where: { id: start.body.id } });
     expect(saved.transcript).toBe("Texto corrigido. Trecho novo.");
   });
 
@@ -72,11 +72,11 @@ describe("transcrição no servidor", () => {
     const doctor = await loginAs(c.users.doctor.email);
     const start = await doctor.post("/api/consultations").send({ patientId: c.patient.id, template: "URGENCIA" });
     transcribeMock.mockImplementationOnce(async () => {
-      await prisma.consultation.update({ where: { id: start.body.id }, data: { status: "FINALIZED" } });
+      await tenantDb(c.clinic.id).consultation.update({ where: { id: start.body.id }, data: { status: "FINALIZED" } });
       return "Trecho atrasado.";
     });
     expect((await send(doctor, pcm(2), start.body.id)).status).toBe(409);
-    const saved = await prisma.consultation.findUniqueOrThrow({ where: { id: start.body.id } });
+    const saved = await tenantDb(c.clinic.id).consultation.findUniqueOrThrow({ where: { id: start.body.id } });
     expect(saved.transcript).toBe("");
   });
 
@@ -108,8 +108,8 @@ describe("transcrição no servidor", () => {
   });
 
   it("consulta finalizada não recebe áudio", async () => {
-    const finalized = await prisma.consultation.create({
-      data: { clinicId: c.clinic.id, doctorId: c.users.doctor.id, patientId: c.patient.id, template: "URGENCIA", status: "FINALIZED" },
+    const finalized = await tenantDb(c.clinic.id).consultation.create({
+      data: { doctorId: c.users.doctor.id, doctorName: c.users.doctor.name, patientId: c.patient.id, template: "URGENCIA", status: "FINALIZED" },
     });
     const doctor = await loginAs(c.users.doctor.email);
     expect((await send(doctor, pcm(2), finalized.id)).status).toBe(409);

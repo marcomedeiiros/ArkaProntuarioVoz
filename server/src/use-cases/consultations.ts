@@ -1,28 +1,30 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import type { ConsultationStatus, Prisma } from "@prisma/client";
+import { Prisma, type ConsultationStatus } from "../generated/tenant";
 import { prisma } from "../lib/prisma";
+import { tenantFor, tenantSchema, type TenantDb } from "../lib/tenant";
 import { HttpError } from "../lib/http-error";
 import { id } from "../lib/validation";
 import { decodePcm16, hasSpeech } from "../lib/audio";
 import { generateClinicalDocs } from "../services/scribe";
 import { transcribe } from "../services/transcriber";
-import { assertCanEditConsultation, assertRole, CLINICAL_ROLES, type Actor } from "./policy";
+import { assertCanEditConsultation, assertPermission, type Actor } from "./policy";
 
 const MIN_TRANSCRIPT = 40;
 const MAX_TRANSCRIPT = 60_000;
 
 const include = {
   patient: true,
-  doctor: { select: { id: true, name: true } },
   transactions: { include: { category: true }, orderBy: { createdAt: "asc" } },
 } satisfies Prisma.ConsultationInclude;
 
-async function loadConsultation(actor: Actor, consultationId: string) {
-  const consultation = await prisma.consultation.findFirst({
-    where: { id: consultationId, clinicId: actor.clinicId },
-    include,
-  });
+/** A tela recebe "doctor: { id, name }"; o nome fica gravado na consulta (o prontuário guarda quem atendeu). */
+function withDoctor<T extends { doctorId: string; doctorName: string }>(c: T) {
+  return { ...c, doctor: { id: c.doctorId, name: c.doctorName } };
+}
+
+async function loadConsultation(db: TenantDb, consultationId: string) {
+  const consultation = await db.consultation.findFirst({ where: { id: consultationId }, include });
   if (!consultation) throw new HttpError(404, "Consulta não encontrada");
   return consultation;
 }
@@ -39,11 +41,11 @@ const ListSchema = z.object({
 });
 
 export async function listConsultations(actor: Actor, query: unknown) {
-  assertRole(actor, CLINICAL_ROLES, "Apenas profissionais de saúde acessam consultas");
+  assertPermission(actor, "CONSULTATIONS");
   const { status, q } = ListSchema.parse(query);
-  return prisma.consultation.findMany({
+  const db = await tenantFor(actor.clinicId);
+  const rows = await db.consultation.findMany({
     where: {
-      clinicId: actor.clinicId,
       ...(status && { status }),
       ...(q && { patient: { name: { contains: q, mode: "insensitive" } } }),
     },
@@ -55,14 +57,17 @@ export async function listConsultations(actor: Actor, query: unknown) {
       status: true,
       createdAt: true,
       patient: { select: { id: true, name: true } },
-      doctor: { select: { name: true } },
+      doctorId: true,
+      doctorName: true,
     },
   });
+  return rows.map(withDoctor);
 }
 
 export async function countConsultationsByStatus(actor: Actor) {
-  assertRole(actor, CLINICAL_ROLES, "Apenas profissionais de saúde acessam consultas");
-  const rows = await prisma.consultation.groupBy({ by: ["status"], where: { clinicId: actor.clinicId }, _count: true });
+  assertPermission(actor, "CONSULTATIONS");
+  const db = await tenantFor(actor.clinicId);
+  const rows = await db.consultation.groupBy({ by: ["status"], _count: true });
   const counts = { ALL: 0, DRAFT: 0, GENERATED: 0, FINALIZED: 0 };
   for (const r of rows) {
     counts[r.status] = r._count;
@@ -72,8 +77,9 @@ export async function countConsultationsByStatus(actor: Actor) {
 }
 
 export async function getConsultation(actor: Actor, consultationId: string) {
-  assertRole(actor, CLINICAL_ROLES, "Apenas profissionais de saúde acessam consultas");
-  return loadConsultation(actor, consultationId);
+  assertPermission(actor, "CONSULTATIONS");
+  const db = await tenantFor(actor.clinicId);
+  return withDoctor(await loadConsultation(db, consultationId));
 }
 
 /* ---------------------------- Escrita ---------------------------- */
@@ -81,14 +87,16 @@ export async function getConsultation(actor: Actor, consultationId: string) {
 const StartSchema = z.object({ patientId: id, template: z.enum(["PUERICULTURA", "URGENCIA"]) });
 
 export async function startConsultation(actor: Actor, input: unknown) {
-  assertRole(actor, CLINICAL_ROLES, "Apenas profissionais de saúde iniciam consultas");
+  assertPermission(actor, "CONSULTATIONS");
   const data = StartSchema.parse(input);
-  const patient = await prisma.patient.findFirst({ where: { id: data.patientId, clinicId: actor.clinicId } });
+  const db = await tenantFor(actor.clinicId);
+  const patient = await db.patient.findFirst({ where: { id: data.patientId } });
   if (!patient) throw new HttpError(404, "Paciente não encontrado");
-  return prisma.consultation.create({
-    data: { ...data, clinicId: actor.clinicId, doctorId: actor.userId },
-    include,
-  });
+  // O nome de quem atende fica gravado na consulta: o prontuário mantém o nome mesmo se a conta mudar.
+  const doctor = await prisma.user.findUniqueOrThrow({ where: { id: actor.userId }, select: { name: true } });
+  return withDoctor(
+    await db.consultation.create({ data: { ...data, doctorId: actor.userId, doctorName: doctor.name }, include }),
+  );
 }
 
 const UpdateSchema = z.strictObject(
@@ -108,14 +116,15 @@ const GENERATED_FIELDS = ["evolution", "prescriptionNotes", "parentGuide"] as co
 
 /** Edita a captura ou os textos gerados. Regras: responsável/adm, não finalizada, textos só após gerar. */
 export async function updateConsultation(actor: Actor, consultationId: string, input: unknown) {
-  const consultation = await loadConsultation(actor, consultationId);
+  const db = await tenantFor(actor.clinicId);
+  const consultation = await loadConsultation(db, consultationId);
   assertCanEditConsultation(actor, consultation);
   assertNotFinalized(consultation.status);
   const data = UpdateSchema.parse(input);
   if (consultation.status === "DRAFT" && GENERATED_FIELDS.some((f) => data[f] !== undefined)) {
     throw new HttpError(409, "Gere os documentos antes de editá-los");
   }
-  return prisma.consultation.update({ where: { id: consultation.id }, data, include });
+  return withDoctor(await db.consultation.update({ where: { id: consultation.id }, data, include }));
 }
 
 // Evita duas gerações simultâneas da mesma consulta (clique duplo, abas repetidas).
@@ -123,7 +132,8 @@ export async function updateConsultation(actor: Actor, consultationId: string, i
 const generating = new Set<string>();
 
 export async function generateDocuments(actor: Actor, consultationId: string) {
-  const consultation = await loadConsultation(actor, consultationId);
+  const db = await tenantFor(actor.clinicId);
+  const consultation = await loadConsultation(db, consultationId);
   assertCanEditConsultation(actor, consultation);
   assertNotFinalized(consultation.status);
   if (consultation.transcript.trim().length < MIN_TRANSCRIPT) {
@@ -141,7 +151,7 @@ export async function generateDocuments(actor: Actor, consultationId: string) {
       heightCm: consultation.heightCm?.toNumber() ?? null,
       consultationDate: consultation.createdAt,
     });
-    return await prisma.consultation.update({
+    return withDoctor(await db.consultation.update({
       where: { id: consultation.id },
       data: {
         evolution: docs.evolucao,
@@ -153,12 +163,12 @@ export async function generateDocuments(actor: Actor, consultationId: string) {
         generatedAt: new Date(),
       },
       include,
-    });
+    }));
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) throw new HttpError(429, "IA sobrecarregada, tente em instantes");
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       console.error("Anthropic: chave inválida ou sem permissão (confira ANTHROPIC_API_KEY no server/.env)");
-      throw new HttpError(503, "A IA não está configurada no servidor (chave da Anthropic inválida). Avise o administrador.");
+      throw new HttpError(503, "A IA não está configurada (chave da Anthropic inválida). Avise a Arka.");
     }
     if (err instanceof Anthropic.APIError) {
       console.error("Anthropic API error", err.status, err.message);
@@ -177,9 +187,10 @@ export async function generateDocuments(actor: Actor, consultationId: string) {
  * enquanto o trecho é processado; a tela recebe o texto e faz a mesma junção localmente.
  */
 export async function transcribeAudio(actor: Actor, consultationId: string, body: unknown) {
-  assertRole(actor, CLINICAL_ROLES, "Apenas profissionais de saúde acessam consultas");
-  const consultation = await prisma.consultation.findFirst({
-    where: { id: consultationId, clinicId: actor.clinicId },
+  assertPermission(actor, "CONSULTATIONS");
+  const db = await tenantFor(actor.clinicId);
+  const consultation = await db.consultation.findFirst({
+    where: { id: consultationId },
     select: { id: true, doctorId: true, status: true },
   });
   if (!consultation) throw new HttpError(404, "Consulta não encontrada");
@@ -193,15 +204,16 @@ export async function transcribeAudio(actor: Actor, consultationId: string, body
 
   // Junção atômica no banco: não sobrescreve edições feitas enquanto o Whisper trabalhava.
   // A finalização pode ter acontecido nesse meio-tempo, por isso o status é conferido de novo aqui.
-  const updated = await prisma.$executeRaw`
-    UPDATE "Consultation"
+  const table = Prisma.raw(`"${tenantSchema(actor.clinicId)}"."Consultation"`);
+  const updated = await db.$executeRaw`
+    UPDATE ${table}
     SET "transcript" = CASE WHEN "transcript" = '' THEN ${text} ELSE "transcript" || ' ' || ${text} END,
         "updatedAt" = now()
     WHERE "id" = ${consultation.id}
       AND "status" <> 'FINALIZED'
       AND length("transcript") + length(${text}) < ${MAX_TRANSCRIPT}`;
   if (updated === 0) {
-    const current = await prisma.consultation.findUniqueOrThrow({ where: { id: consultation.id }, select: { status: true } });
+    const current = await db.consultation.findUniqueOrThrow({ where: { id: consultation.id }, select: { status: true } });
     assertNotFinalized(current.status);
     throw new HttpError(409, "Transcrição longa demais");
   }
@@ -210,18 +222,20 @@ export async function transcribeAudio(actor: Actor, consultationId: string, body
 
 /** Só finaliza o que já foi gerado e tem evolução. Depois disso nada muda até reabrir. */
 export async function finalizeConsultation(actor: Actor, consultationId: string) {
-  const consultation = await loadConsultation(actor, consultationId);
+  const db = await tenantFor(actor.clinicId);
+  const consultation = await loadConsultation(db, consultationId);
   assertCanEditConsultation(actor, consultation);
   if (consultation.status !== "GENERATED") {
     throw new HttpError(409, consultation.status === "FINALIZED" ? "A consulta já está finalizada" : "Gere os documentos antes de finalizar");
   }
   if (!consultation.evolution?.trim()) throw new HttpError(409, "A evolução está vazia");
-  return prisma.consultation.update({ where: { id: consultation.id }, data: { status: "FINALIZED" }, include });
+  return withDoctor(await db.consultation.update({ where: { id: consultation.id }, data: { status: "FINALIZED" }, include }));
 }
 
 export async function reopenConsultation(actor: Actor, consultationId: string) {
-  const consultation = await loadConsultation(actor, consultationId);
+  const db = await tenantFor(actor.clinicId);
+  const consultation = await loadConsultation(db, consultationId);
   assertCanEditConsultation(actor, consultation);
   if (consultation.status !== "FINALIZED") throw new HttpError(409, "Só é possível reabrir uma consulta finalizada");
-  return prisma.consultation.update({ where: { id: consultation.id }, data: { status: "GENERATED" }, include });
+  return withDoctor(await db.consultation.update({ where: { id: consultation.id }, data: { status: "GENERATED" }, include }));
 }

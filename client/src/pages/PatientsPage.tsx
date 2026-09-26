@@ -60,7 +60,7 @@ export function PatientsPage() {
           <EmptyState
             icon={Users}
             title={query ? "Nenhum resultado" : "Nenhum paciente cadastrado"}
-            text={query ? "Tente buscar por outro nome." : "Cadastre o primeiro paciente para começar a atender."}
+            text={query ? "Tente buscar por outro nome." : "Cadastre o primeiro paciente para começar a atender"}
             action={
               !query && (
                 <button className="btn btn-primary" onClick={() => setCreating(true)}>

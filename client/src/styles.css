@@ -2561,3 +2561,973 @@ a.timeline-row:focus-visible {
 .actions-cell .btn-danger-ghost:focus-visible {
   color: var(--danger);
 }
+
+/* ============ Administração Arka ============ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Grupo separado no menu: é outra área (a da empresa dona do SaaS), não mais um item da clínica. */
+.nav-arka {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-arka-title {
+  padding: 0 10px 6px;
+  font-size: 0.78rem;
+  color: var(--sidebar-muted);
+}
+.nav-count {
+  margin-left: auto;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: #e0a526;
+  color: #2b1a00;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Liberação: mesma lógica da fila da tela inicial (faixa âmbar = esperando decisão). */
+.review-tabs {
+  margin: 4px 0 16px;
+}
+.tab-count {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 18px 16px 16px;
+  border-left: 4px solid var(--border-strong);
+}
+.review-row + .review-row {
+  border-top: 1px solid var(--border);
+}
+.review-row.is-pending {
+  border-left-color: #e0a526;
+}
+.review-row.is-active {
+  border-left-color: var(--primary);
+}
+.review-row.is-suspended,
+.review-row.is-rejected {
+  border-left-color: var(--danger);
+}
+.review-who {
+  flex: 1;
+  min-width: 0;
+}
+.review-who strong {
+  display: block;
+  font-size: 1.05rem;
+}
+.review-who span {
+  display: block;
+  color: var(--text-2);
+  font-size: 0.92rem;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.review-who small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
+  margin-top: 2px;
+}
+.review-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .review-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .review-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* Cargos e permissões: uma tabela de verdade (é uma matriz). */
+.perm-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.perm-table th,
+.perm-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+.perm-table th:first-child {
+  text-align: left;
+  min-width: 200px;
+}
+.perm-table thead th {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.perm-col {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.perm-table thead small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+.perm-table tbody th {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.perm-table tbody th small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+.perm-table tr.is-locked {
+  background: var(--surface-2);
+}
+.perm-check {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.perm-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.perm-check:focus-visible {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+.perm-note {
+  margin-top: 12px;
+  max-width: 72ch;
+}
+
+/* Configurações */
+.settings-block {
+  max-width: 760px;
+}
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.settings-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 0.93rem;
+}
+.settings-status svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.settings-status.is-ok {
+  background: var(--success-soft);
+  color: #14532d;
+}
+.settings-status.is-off {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.key-tail {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+}
+.settings-form .field-hint {
+  max-width: 64ch;
+}
+.perm-table {
+  width: 100%;
+  table-layout: fixed;
+  min-width: 620px;
+}
+.perm-table th,
+.perm-table td {
+  white-space: normal;
+}
+.perm-table th:first-child {
+  width: 30%;
+  min-width: 0;
+}
+
+/* Módulos de cada empresa (área da Arka) */
+.module-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.module-chip {
+  font-size: 0.76rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--border-strong);
+  color: var(--subtle);
+  text-decoration: line-through;
+}
+.module-chip.is-on {
+  border-style: solid;
+  border-color: #b9c6dc;
+  background: var(--primary-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.module-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.module-option:hover {
+  background: var(--surface-2);
+}
+.module-option .perm-check {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.module-option strong {
+  display: block;
+  font-size: 0.95rem;
+}
+.module-option small {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.role-perms {
+  margin-top: 24px;
+}
+/* As etiquetas de módulo ficam lado a lado (a regra genérica de .review-who span não vale para elas). */
+.review-who .module-chips {
+  display: flex;
+  margin-top: 8px;
+}
+.review-who .module-chip {
+  display: inline-block;
+  margin-top: 0;
+  font-size: 0.76rem;
+  color: var(--subtle);
+}
+.review-who .module-chip.is-on {
+  color: var(--text);
+}
+
+/* ============ Arka: o que cada empresa vê ============ */
+.review-name {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.review-name:hover {
+  text-decoration: underline;
+}
+.company-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.company-modules {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+.company-module {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  cursor: pointer;
+}
+.company-module:hover {
+  background: var(--surface-2);
+}
+.company-module-icon {
+  color: var(--subtle);
+  flex-shrink: 0;
+}
+.company-module.is-on .company-module-icon {
+  color: var(--primary);
+}
+.company-module-text strong {
+  display: block;
+  font-size: 0.97rem;
+}
+.company-module-text small {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.company-module:not(.is-on) .company-module-text strong {
+  color: var(--muted);
+}
+/* Interruptor: liga/desliga uma aba da empresa. */
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 23px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.toggle-switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 0.15s;
+  pointer-events: none;
+}
+.toggle-switch span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(19, 40, 90, 0.3);
+  transition: transform 0.15s;
+}
+.toggle-switch input:checked + span {
+  background: var(--primary);
+}
+.toggle-switch input:checked + span::after {
+  transform: translateX(17px);
+}
+.toggle-switch input:focus-visible + span {
+  outline: 2px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toggle-switch span,
+  .toggle-switch span::after {
+    transition: none;
+  }
+}
+/* Prévia do menu da clínica, com as cores da barra lateral real. */
+.menu-preview {
+  margin: 16px 0 10px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 280px;
+}
+.menu-preview-clinic {
+  font-size: 0.8rem;
+  color: var(--sidebar-muted);
+  padding: 4px 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--sidebar-text);
+  font-size: 0.88rem;
+}
+.menu-preview-item.is-account {
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  padding-top: 12px;
+  color: var(--sidebar-muted);
+}
+@media (max-width: 900px) {
+  .company-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Login no celular: formulário no alto (não centralizado) para o botão ficar ao alcance do polegar. */
+@media (max-width: 720px) {
+  .auth-panel {
+    place-items: start center;
+    padding: 28px 20px 40px;
+    min-height: 100dvh;
+  }
+  .auth-form {
+    gap: 14px;
+  }
+  .auth-form h1 {
+    font-size: 1.45rem;
+  }
+  .auth-options {
+    row-gap: 10px;
+  }
+}
+@media (max-width: 360px) {
+  .auth-panel {
+    padding: 20px 14px 32px;
+  }
+  .auth-mobile-brand .brand-main {
+    height: 34px;
+  }
+}
+
+/* ============ Agenda ============ */
+.agenda-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.agenda-title h1 {
+  font-size: 1.6rem;
+}
+.agenda-title p {
+  color: var(--muted);
+  margin-top: 2px;
+}
+.agenda-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.agenda-nav {
+  display: flex;
+  gap: 6px;
+}
+.agenda-filter {
+  width: auto;
+  min-width: 200px;
+}
+
+/* Status: a cor diz em que etapa o horário está. */
+.st-scheduled {
+  --ev-bg: #fff;
+  --ev-border: var(--primary);
+  --ev-text: var(--text);
+}
+.st-confirmed {
+  --ev-bg: var(--primary-soft);
+  --ev-border: var(--primary);
+  --ev-text: var(--text);
+}
+/* Chegou = esperando na recepção: âmbar, a mesma cor de "precisa de atenção" do resto do sistema. */
+.st-arrived {
+  --ev-bg: #fff3d6;
+  --ev-border: #e0a526;
+  --ev-text: #6b4300;
+}
+.st-done {
+  --ev-bg: var(--surface-2);
+  --ev-border: var(--border-strong);
+  --ev-text: var(--muted);
+}
+.st-canceled,
+.st-no_show {
+  --ev-bg: transparent;
+  --ev-border: var(--border-strong);
+  --ev-text: var(--subtle);
+}
+.st-no_show {
+  --ev-border: #f0a3a3;
+}
+
+/* Semana: grade de horários */
+.time-grid {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+  max-height: calc(100dvh - 200px);
+}
+.tg-head,
+.tg-body {
+  display: grid;
+  grid-template-columns: 56px repeat(var(--cols), minmax(110px, 1fr));
+  min-width: calc(56px + var(--cols) * 110px);
+}
+.tg-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.tg-day {
+  padding: 8px 4px;
+  text-align: center;
+  border-left: 1px solid var(--border);
+}
+.tg-day small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+.tg-day strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.tg-day.is-today strong {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+}
+.tg-body {
+  position: relative;
+}
+.tg-hours span {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--subtle);
+  text-align: right;
+  padding: 0 8px;
+  transform: translateY(-7px);
+  font-variant-numeric: tabular-nums;
+}
+/* Linha forte a cada hora e fraca na meia hora (52px por hora). */
+.tg-col {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0 1px,
+    transparent 1px 26px,
+    #eef1f5 26px 27px,
+    transparent 27px 52px
+  );
+  cursor: copy;
+}
+.tg-col.is-today {
+  background-color: #f7f9fc;
+}
+.tg-event {
+  position: absolute;
+  z-index: 1;
+  text-align: left;
+  border: 1px solid var(--ev-border);
+  border-left-width: 4px;
+  background: var(--ev-bg);
+  color: var(--ev-text);
+  border-radius: 6px;
+  padding: 3px 6px;
+  overflow: hidden;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.2;
+}
+.tg-event:hover,
+.tg-event:focus-visible {
+  z-index: 2;
+  box-shadow: 0 4px 12px -4px rgba(19, 40, 90, 0.35);
+  outline: none;
+}
+.tg-event strong {
+  display: block;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-event span {
+  display: block;
+  font-size: 0.74rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.tg-event.st-canceled strong,
+.tg-event.st-no_show strong {
+  text-decoration: line-through;
+}
+.tg-now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--danger);
+  z-index: 2;
+  pointer-events: none;
+}
+.tg-now::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+/* Dia: lista */
+.day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--ev-bg, #fff);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ev-border, var(--primary));
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.day-row:hover {
+  box-shadow: 0 4px 12px -6px rgba(19, 40, 90, 0.35);
+}
+.day-row.is-past:not(.st-arrived) {
+  opacity: 0.7;
+}
+.day-row time strong {
+  display: block;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.day-row time small,
+.day-who small {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.day-who strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.day-row.st-canceled .day-who strong,
+.day-row.st-no_show .day-who strong {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.appt-badge {
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--ev-border);
+  color: var(--ev-text);
+  background: var(--ev-bg);
+  white-space: nowrap;
+}
+.agenda-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Mês: visão geral */
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mg-weekday {
+  padding: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  text-transform: capitalize;
+  border-bottom: 1px solid var(--border);
+}
+.mg-cell {
+  min-height: 104px;
+  padding: 4px 6px 6px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mg-cell:nth-child(7n + 7) {
+  border-right: none;
+}
+.mg-cell.is-outside {
+  background: var(--surface-2);
+}
+.mg-cell.is-outside .mg-date {
+  color: var(--subtle);
+}
+.mg-date {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.mg-date:hover {
+  background: var(--surface-2);
+}
+.mg-cell.is-today .mg-date {
+  background: var(--primary);
+  color: #fff;
+}
+.mg-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.76rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  border-left: 3px solid var(--ev-border);
+  background: var(--ev-bg);
+  color: var(--ev-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.mg-chip span {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.mg-more {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.mg-more:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* Detalhe do horário */
+.appt-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.appt-when {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.appt-when svg {
+  margin-top: 2px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.appt-when strong {
+  display: block;
+}
+.appt-when small {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.appt-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.appt-notes {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+/* Etapas em sequência: marcado, confirmado, chegou (é mesmo uma sequência). */
+.appt-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.appt-step {
+  border: none;
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 9px 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.appt-step + .appt-step {
+  border-left: 1px solid var(--border-strong);
+}
+.appt-step:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.appt-step.is-current {
+  background: var(--primary);
+  color: #fff;
+  cursor: default;
+}
+.appt-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.appt-secondary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.appt-delete {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .agenda-tools {
+    width: 100%;
+  }
+  .agenda-tools .segmented {
+    flex: 1;
+  }
+  .agenda-filter {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .agenda-tools > .btn-primary {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .mg-cell {
+    min-height: 64px;
+  }
+  /* No celular, o mês vira um mapa: um tracinho por horário; toque no dia para ver a lista. */
+  .mg-chip {
+    font-size: 0;
+    height: 6px;
+    padding: 0;
+  }
+  .day-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+  .day-row .appt-badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .appt-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+.tg-event.is-short {
+  display: flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.tg-event .tg-time {
+  display: inline;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+/* O primeiro horário do dia não fica escondido sob o cabeçalho dos dias. */
+.tg-hours span:first-child {
+  transform: none;
+}

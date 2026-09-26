@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createClinic, loginAs, prisma, resetDb, type ClinicFixture } from "./helpers";
+import { createClinic, loginAs, prisma, resetDb, type ClinicFixture, tenantDb } from "./helpers";
 
 // A IA é simulada: os testes nunca chamam a Anthropic nem gastam créditos.
 vi.mock("../src/services/scribe", () => ({ generateClinicalDocs: vi.fn() }));
@@ -97,7 +97,7 @@ describe("regras de cada etapa", () => {
     for (const body of [{ status: "FINALIZED" }, { doctorId: c.users.doctor2.id }, { clinicId: "outra" }, { alerts: [] }]) {
       expect((await doctor.patch(`/api/consultations/${draft.id}`).send(body)).status).toBe(400);
     }
-    const unchanged = await prisma.consultation.findUniqueOrThrow({ where: { id: draft.id } });
+    const unchanged = await tenantDb(c.clinic.id).consultation.findUniqueOrThrow({ where: { id: draft.id } });
     expect(unchanged.status).toBe("DRAFT");
     expect(unchanged.doctorId).toBe(c.users.doctor.id);
   });
@@ -164,7 +164,7 @@ describe("geração por IA", () => {
     expect(JSON.stringify(failed.body)).not.toContain("detalhe interno");
 
     // Depois da falha, a consulta continua em rascunho e pode ser gerada de novo.
-    expect((await prisma.consultation.findUniqueOrThrow({ where: { id } })).status).toBe("DRAFT");
+    expect((await tenantDb(c.clinic.id).consultation.findUniqueOrThrow({ where: { id } })).status).toBe("DRAFT");
     expect((await doctor.post(`/api/consultations/${id}/generate`)).status).toBe(200);
   });
 });
@@ -185,7 +185,7 @@ describe("listagem e contagens (calculadas no servidor)", () => {
   it("contagens batem com o banco", async () => {
     const doctor = await loginAs(c.users.doctor.email);
     const res = await doctor.get("/api/consultations/counts");
-    const total = await prisma.consultation.count({ where: { clinicId: c.clinic.id } });
+    const total = await tenantDb(c.clinic.id).consultation.count();
     expect(res.body.ALL).toBe(total);
     expect(res.body.DRAFT + res.body.GENERATED + res.body.FINALIZED).toBe(total);
   });

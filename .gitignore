@@ -63,6 +63,9 @@ recordings/
 *.m4a
 *.ogg
 
+# --- Código gerado (Prisma da clínica) ---
+server/src/generated/
+
 # --- Dependências e builds ---
 node_modules/
 dist/

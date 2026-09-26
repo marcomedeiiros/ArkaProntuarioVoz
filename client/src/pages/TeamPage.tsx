@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { LoaderCircle, LogOut, Trash2, TriangleAlert, UserCheck, UserPlus, UserX } from "lucide-react";
 import { api } from "../api";
-import { useAuth } from "../auth";
+import { useAuth, useCan } from "../auth";
 import { ROLE_LABEL } from "../format";
 import { Avatar, FormError, Modal, PageHeader, PageLoader } from "../components/ui";
 import { useToast } from "../components/toast";
+import { RolePermissionsCard } from "../components/RolePermissions";
 import type { Role, User } from "../types";
 
 const ROLE_TONE: Record<Role, string> = {
@@ -13,16 +14,19 @@ const ROLE_TONE: Record<Role, string> = {
   SECRETARY: "badge-neutral",
 };
 
+// O que cada cargo acessa depende da clínica (tabela "O que cada cargo acessa", abaixo da equipe).
 const ROLE_HELP: Record<Role, string> = {
-  ADMIN: "Acesso total, incluindo equipe e configurações",
-  DOCTOR: "Consultas, pacientes e financeiro",
-  SECRETARY: "Pacientes e financeiro não acessa as consultas clínicas",
+  ADMIN: "Tudo o que a clínica tem, inclusive gerenciar a equipe e as permissões dos cargos",
+  DOCTOR: "O que a administração liberou para médicos(as) nesta clínica",
+  SECRETARY: "O que a administração liberou para secretárias(os) nesta clínica",
 };
 
 export function TeamPage() {
   const { session } = useAuth();
   const toast = useToast();
+  // Quem gerencia a equipe vem da matriz da Arka; contas de administrador só um administrador altera.
   const isAdmin = session!.user.role === "ADMIN";
+  const canTeam = useCan().team;
   const [users, setUsers] = useState<User[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<User | null>(null);
@@ -58,7 +62,7 @@ export function TeamPage() {
         title="Equipe"
         subtitle="Pessoas com acesso ao sistema desta clínica"
         actions={
-          isAdmin && (
+          canTeam && (
             <button className="btn btn-primary" onClick={() => setAdding(true)}>
               <UserPlus size={17} /> Adicionar pessoa
             </button>
@@ -72,7 +76,7 @@ export function TeamPage() {
         <div className="member-grid">
           {users.map((u) => {
             const isMe = u.id === session!.user.id;
-            const canManage = isAdmin && !isMe;
+            const canManage = canTeam && !isMe && !u.platformAdmin && (isAdmin || u.role !== "ADMIN");
             return (
               <div key={u.id} className={`card member ${u.active ? "" : "inactive"}`}>
                 <div className="member-body">
@@ -121,6 +125,8 @@ export function TeamPage() {
         </div>
       )}
 
+      {isAdmin && <RolePermissionsCard />}
+
       {removing && (
         <DeleteMemberModal
           user={removing}
@@ -141,6 +147,7 @@ export function TeamPage() {
       {adding && (
         <Modal title="Adicionar pessoa" subtitle="Ela entra com o e-mail e a senha provisória" onClose={() => setAdding(false)}>
           <NewMemberForm
+            allowAdmin={isAdmin}
             onCreated={() => {
               setAdding(false);
               toast("Pessoa adicionada à equipe");
@@ -230,7 +237,15 @@ function DeleteMemberModal({
   );
 }
 
-function NewMemberForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+function NewMemberForm({
+  onCreated,
+  onCancel,
+  allowAdmin,
+}: {
+  onCreated: () => void;
+  onCancel: () => void;
+  allowAdmin: boolean;
+}) {
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "SECRETARY" as Role });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -274,7 +289,9 @@ function NewMemberForm({ onCreated, onCancel }: { onCreated: () => void; onCance
       <label className="field col-span-2">
         <span className="field-label">Perfil de acesso</span>
         <select className="select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-          {Object.entries(ROLE_LABEL).map(([value, label]) => (
+          {Object.entries(ROLE_LABEL)
+            .filter(([value]) => allowAdmin || value !== "ADMIN")
+            .map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import { prisma } from "../lib/prisma";
+import { Prisma } from "../generated/tenant";
+import { tenantFor } from "../lib/tenant";
 import { HttpError } from "../lib/http-error";
 import { dateOnly, id, money, month, name, optionalText } from "../lib/validation";
-import type { Actor } from "./policy";
+import { assertPermission, type Actor } from "./policy";
 
 const TYPES = ["INCOME", "EXPENSE"] as const;
 const METHODS = ["PIX", "CARTAO_CREDITO", "CARTAO_DEBITO", "DINHEIRO", "CONVENIO", "OUTRO"] as const;
@@ -22,8 +22,9 @@ const transactionInclude = { category: true, patient: { select: { id: true, name
 /* ---------------------------- Categorias ---------------------------- */
 
 export async function listCategories(actor: Actor) {
-  return prisma.financialCategory.findMany({
-    where: { clinicId: actor.clinicId },
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
+  return db.financialCategory.findMany({
     orderBy: [{ type: "asc" }, { name: "asc" }],
   });
 }
@@ -31,8 +32,10 @@ export async function listCategories(actor: Actor) {
 const CategorySchema = z.object({ name: name("Nome da categoria"), type: z.enum(TYPES) });
 
 export async function createCategory(actor: Actor, input: unknown) {
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
   const data = CategorySchema.parse(input);
-  return prisma.financialCategory.create({ data: { ...data, clinicId: actor.clinicId } });
+  return db.financialCategory.create({ data: { ...data } });
 }
 
 /* ---------------------------- Lançamentos ---------------------------- */
@@ -57,8 +60,10 @@ const TransactionSchema = z.object({
 });
 
 export async function listTransactions(actor: Actor, monthParam: unknown) {
-  return prisma.transaction.findMany({
-    where: { clinicId: actor.clinicId, date: monthRange(monthParam) },
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
+  return db.transaction.findMany({
+    where: { date: monthRange(monthParam) },
     include: transactionInclude,
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
@@ -71,16 +76,18 @@ export async function listTransactions(actor: Actor, monthParam: unknown) {
  * - pagamento de consulta é sempre ENTRADA e fica ligado ao paciente da própria consulta.
  */
 export async function recordTransaction(actor: Actor, input: unknown) {
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
   const data = TransactionSchema.parse(input);
 
-  const category = await prisma.financialCategory.findFirst({ where: { id: data.categoryId, clinicId: actor.clinicId } });
+  const category = await db.financialCategory.findFirst({ where: { id: data.categoryId } });
   if (!category) throw new HttpError(400, "Categoria inválida");
   if (category.type !== data.type) throw new HttpError(400, "A categoria não corresponde ao tipo do lançamento");
 
   let patientId = data.patientId ?? null;
   if (data.consultationId) {
-    const consultation = await prisma.consultation.findFirst({
-      where: { id: data.consultationId, clinicId: actor.clinicId },
+    const consultation = await db.consultation.findFirst({
+      where: { id: data.consultationId },
       select: { patientId: true },
     });
     if (!consultation) throw new HttpError(400, "Consulta inválida");
@@ -89,13 +96,12 @@ export async function recordTransaction(actor: Actor, input: unknown) {
       throw new HttpError(400, "O paciente não corresponde ao da consulta");
     }
     patientId = consultation.patientId;
-  } else if (patientId && !(await prisma.patient.findFirst({ where: { id: patientId, clinicId: actor.clinicId } }))) {
+  } else if (patientId && !(await db.patient.findFirst({ where: { id: patientId } }))) {
     throw new HttpError(400, "Paciente inválido");
   }
 
-  return prisma.transaction.create({
+  return db.transaction.create({
     data: {
-      clinicId: actor.clinicId,
       type: data.type,
       status: data.status,
       amount: new Prisma.Decimal(data.amount),
@@ -113,27 +119,33 @@ export async function recordTransaction(actor: Actor, input: unknown) {
 const StatusSchema = z.object({ status: z.enum(["PAID", "PENDING"]) });
 
 export async function setTransactionStatus(actor: Actor, transactionId: string, input: unknown) {
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
   const { status } = StatusSchema.parse(input);
-  const { count } = await prisma.transaction.updateMany({ where: { id: transactionId, clinicId: actor.clinicId }, data: { status } });
+  const { count } = await db.transaction.updateMany({ where: { id: transactionId }, data: { status } });
   if (!count) throw new HttpError(404, "Lançamento não encontrado");
-  return prisma.transaction.findUniqueOrThrow({ where: { id: transactionId }, include: transactionInclude });
+  return db.transaction.findUniqueOrThrow({ where: { id: transactionId }, include: transactionInclude });
 }
 
 export async function deleteTransaction(actor: Actor, transactionId: string) {
-  const { count } = await prisma.transaction.deleteMany({ where: { id: transactionId, clinicId: actor.clinicId } });
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
+  const { count } = await db.transaction.deleteMany({ where: { id: transactionId } });
   if (!count) throw new HttpError(404, "Lançamento não encontrado");
 }
 
 /* ---------------------------- Resumo ---------------------------- */
 
 export async function monthlySummary(actor: Actor, monthParam: unknown) {
-  const where = { clinicId: actor.clinicId, date: monthRange(monthParam) };
+  assertPermission(actor, "FINANCE");
+  const db = await tenantFor(actor.clinicId);
+  const where = { date: monthRange(monthParam) };
 
   const [byType, byMethod, byCategory, categories] = await Promise.all([
-    prisma.transaction.groupBy({ by: ["type", "status"], where, _sum: { amount: true } }),
-    prisma.transaction.groupBy({ by: ["method"], where: { ...where, type: "INCOME", status: "PAID" }, _sum: { amount: true } }),
-    prisma.transaction.groupBy({ by: ["categoryId"], where: { ...where, status: "PAID" }, _sum: { amount: true } }),
-    prisma.financialCategory.findMany({ where: { clinicId: actor.clinicId } }),
+    db.transaction.groupBy({ by: ["type", "status"], where, _sum: { amount: true } }),
+    db.transaction.groupBy({ by: ["method"], where: { ...where, type: "INCOME", status: "PAID" }, _sum: { amount: true } }),
+    db.transaction.groupBy({ by: ["categoryId"], where: { ...where, status: "PAID" }, _sum: { amount: true } }),
+    db.financialCategory.findMany({ }),
   ]);
 
   const sum = (type: string, status: string) =>

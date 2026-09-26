@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createClinic, loginAs, resetDb, type ClinicFixture } from "./helpers";
+import { createClinic, loginAs, resetDb, type ClinicFixture, tenantDb } from "./helpers";
 
 let c: ClinicFixture;
 
@@ -16,7 +16,8 @@ describe("pacientes", () => {
     const res = await sec.post("/api/patients").send(patient);
     expect(res.status).toBe(201);
     expect(res.body.guardianPhone).toBe("27995448899");
-    expect(res.body.clinicId).toBe(c.clinic.id);
+    // Fica no espaço de dados da própria clínica.
+    expect(await tenantDb(c.clinic.id).patient.findUnique({ where: { id: res.body.id } })).not.toBeNull();
   });
 
   it.each([
@@ -36,7 +37,8 @@ describe("pacientes", () => {
     const sec = await loginAs(c.users.secretary.email);
     const res = await sec.post("/api/patients").send({ ...patient, clinicId: "clinica-de-outra-pessoa" });
     expect(res.status).toBe(201);
-    expect(res.body.clinicId).toBe(c.clinic.id);
+    expect(res.body).not.toHaveProperty("clinicId");
+    expect(await tenantDb(c.clinic.id).patient.findUnique({ where: { id: res.body.id } })).not.toBeNull();
   });
 });
 

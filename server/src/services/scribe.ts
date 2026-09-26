@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import type { ConsultationTemplate, Sex } from "@prisma/client";
+import type { ConsultationTemplate, Sex } from "../generated/tenant";
 import { HttpError } from "../lib/http-error";
+import { getAnthropicClient } from "./ai-settings";
 
-const client = new Anthropic();
 
 export const ScribeOutputSchema = z.object({
   evolucao: z
@@ -105,6 +105,7 @@ export async function generateClinicalDocs(input: ScribeInput): Promise<ScribeOu
     .filter(Boolean)
     .join("\n");
 
+  const client = await getAnthropicClient();
   const response = await client.beta.messages.parse({
     model: "claude-opus-5",
     max_tokens: 16000,

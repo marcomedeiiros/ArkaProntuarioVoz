@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Stethoscope, UserPlus } from "lucide-react";
 import { api } from "../api";
-import { useAuth } from "../auth";
+import { useAuth, useCan } from "../auth";
 import { brl, capitalize, TEMPLATE_LABEL } from "../format";
 import { PageLoader } from "../components/ui";
 import type { ConsultationStatus, DashboardData } from "../types";
@@ -31,7 +31,8 @@ const NEXT_STEP: Record<ConsultationStatus, string> = {
 
 export function DashboardPage() {
   const { session } = useAuth();
-  const clinical = session!.user.role !== "SECRETARY";
+  const can = useCan();
+  const clinical = can.consultations;
   const [data, setData] = useState<DashboardData | null>(null);
 
   // Todos os números vêm calculados do servidor (/api/dashboard).
@@ -56,10 +57,12 @@ export function DashboardPage() {
           </h1>
           <p>{today}</p>
         </div>
+        {can.patients && (
         <Link to="/pacientes" className="btn btn-primary btn-lg">
           {clinical ? <Stethoscope size={18} /> : <UserPlus size={18} />}
           {clinical ? "Nova consulta" : "Pacientes"}
         </Link>
+        )}
       </header>
 
       <div className="desk-body">
@@ -71,7 +74,7 @@ export function DashboardPage() {
               </h2>
               {queue.length === 0 ? (
                 <p className="queue-empty">
-                  Nada esperando por você. Para começar, abra a ficha de um paciente e inicie a consulta.
+                  Nada esperando por você para começar, abra a ficha de um paciente e inicie a consulta
                 </p>
               ) : (
                 <ol className="queue-list">
@@ -131,6 +134,7 @@ export function DashboardPage() {
               </dl>
             </section>
           )}
+          {finance && (
           <section>
             <h2>{capitalize(new Date().toLocaleDateString("pt-BR", { month: "long" }))}</h2>
             <dl>
@@ -147,6 +151,7 @@ export function DashboardPage() {
               Abrir financeiro
             </Link>
           </section>
+          )}
         </aside>
       </div>
     </div>

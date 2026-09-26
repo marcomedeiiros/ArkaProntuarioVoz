@@ -25,7 +25,7 @@ export const registerLimiter = rateLimit({
 export const aiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 60,
-  keyGenerator: (req) => req.auth?.userId ?? "anon",
+  keyGenerator: (req) => req.auth?.actor.userId ?? "anon",
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: message("Limite de gerações por hora atingido tente novamente mais tarde"),
@@ -35,7 +35,7 @@ export const aiLimiter = rateLimit({
 export const transcriptionLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 720,
-  keyGenerator: (req) => req.auth?.userId ?? "anon",
+  keyGenerator: (req) => req.auth?.actor.userId ?? "anon",
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: message("Limite de transcrição por hora atingido tente novamente mais tarde"),
@@ -45,7 +45,7 @@ export const transcriptionLimiter = rateLimit({
 export const passwordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
-  keyGenerator: (req) => req.auth?.userId ?? "anon",
+  keyGenerator: (req) => req.auth?.actor.userId ?? "anon",
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: message("Muitas tentativas de troca de senha Aguarde 15 minutos"),

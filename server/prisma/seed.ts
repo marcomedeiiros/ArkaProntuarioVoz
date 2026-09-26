@@ -9,15 +9,15 @@ import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
-import { DEFAULT_CATEGORIES } from "../src/lib/default-categories";
+import { prisma } from "../src/lib/prisma";
+import { closeTenantClients, dropTenant, provisionTenant, tenantDb } from "../src/lib/tenant";
+import { DEFAULT_ROLE_PERMISSIONS } from "../src/lib/permissions";
 
 if (process.env.NODE_ENV === "production") {
   console.error("O seed de demonstração não roda em produção.");
   process.exit(1);
 }
 
-const prisma = new PrismaClient();
 
 const CREDENTIALS_FILE = resolve(__dirname, "../.demo-credentials");
 const strongPassword = () => randomBytes(18).toString("base64url");
@@ -52,13 +52,19 @@ async function main() {
     where: { email: { in: [ADMIN_EMAIL, SECRETARY_EMAIL, ...LEGACY_EMAILS] } },
     select: { clinicId: true },
   });
-  const clinicIds = [...new Set(previous.map((u) => u.clinicId))];
+  const clinicIds = [...new Set(previous.map((u) => u.clinicId).filter((id): id is string => !!id))];
+  for (const id of clinicIds) await dropTenant(id); // apaga o espaço de dados da demo antiga
   if (clinicIds.length) await prisma.clinic.deleteMany({ where: { id: { in: clinicIds } } });
 
   const clinic = await prisma.clinic.create({
     data: {
       name: "Consultório Dra. Ana (demonstração)",
-      categories: { create: DEFAULT_CATEGORIES.map((c) => ({ ...c })) },
+      status: "ACTIVE",
+      rolePermissions: {
+        create: Object.entries(DEFAULT_ROLE_PERMISSIONS).flatMap(([role, perms]) =>
+          perms.map((permission) => ({ role: role as "DOCTOR" | "SECRETARY", permission })),
+        ),
+      },
       users: {
         create: [
           {
@@ -76,10 +82,14 @@ async function main() {
         ],
       },
     },
-    include: { users: true, categories: true },
+    include: { users: true },
   });
+  // Espaço de dados próprio da clínica (schema), com as categorias financeiras padrão.
+  await provisionTenant(clinic.id);
+  const db = tenantDb(clinic.id);
+  const categories = await db.financialCategory.findMany();
   const doctor = clinic.users.find((u) => u.role === "ADMIN")!;
-  const cat = (name: string) => clinic.categories.find((c) => c.name === name)!.id;
+  const cat = (name: string) => categories.find((c) => c.name === name)!.id;
 
   const [joao, helena, miguel, laura, theo] = await Promise.all(
     [
@@ -88,12 +98,12 @@ async function main() {
       { name: "Miguel Costa", birthDate: birth(dateMonthsAgo(58)), sex: "M", guardianName: "Juliana Costa", guardianPhone: "27996336677" },
       { name: "Laura Ferreira", birthDate: birth(dateMonthsAgo(9)), sex: "F", guardianName: "Patrícia Ferreira", guardianPhone: "27995448899", notes: "Prematura de 35 semanas" },
       { name: "Theo Almeida", birthDate: birth(dateMonthsAgo(14)), sex: "M", guardianName: "Bruna Almeida", guardianPhone: "27994551122" },
-    ].map((p) => prisma.patient.create({ data: { ...p, sex: p.sex as "M" | "F", clinicId: clinic.id } })),
+    ].map((p) => db.patient.create({ data: { ...p, sex: p.sex as "M" | "F" } })),
   );
 
-  const base = { clinicId: clinic.id, doctorId: doctor.id };
+  const base = { doctorId: doctor.id, doctorName: doctor.name };
 
-  const puericultura = await prisma.consultation.create({
+  const puericultura = await db.consultation.create({
     data: {
       ...base,
       patientId: joao.id,
@@ -115,7 +125,7 @@ async function main() {
     },
   });
 
-  await prisma.consultation.create({
+  await db.consultation.create({
     data: {
       ...base,
       patientId: helena.id,
@@ -143,7 +153,7 @@ async function main() {
     },
   });
 
-  await prisma.consultation.create({
+  await db.consultation.create({
     data: {
       ...base,
       patientId: laura.id,
@@ -160,11 +170,11 @@ async function main() {
     amount: number; method: "PIX" | "CARTAO_CREDITO" | "CARTAO_DEBITO" | "DINHEIRO" | "CONVENIO";
     category: string; day: number; patientId?: string; consultationId?: string; status?: "PAID" | "PENDING";
   }) => ({
-    clinicId: clinic.id, type: "INCOME" as const, amount: d.amount, method: d.method, categoryId: cat(d.category),
+    type: "INCOME" as const, amount: d.amount, method: d.method, categoryId: cat(d.category),
     date: dayUTC(d.day), patientId: d.patientId, consultationId: d.consultationId, status: d.status ?? "PAID",
   });
   const expense = (amount: number, category: string, day: number, description: string) => ({
-    clinicId: clinic.id, type: "EXPENSE" as const, amount, method: "PIX" as const, categoryId: cat(category),
+    type: "EXPENSE" as const, amount, method: "PIX" as const, categoryId: cat(category),
     date: dayUTC(day), description, status: "PAID" as const,
   });
 
@@ -172,7 +182,7 @@ async function main() {
   const dayOfMonth = new Date().getDate();
   const d = (n: number) => Math.min(n, dayOfMonth - 1);
 
-  await prisma.transaction.createMany({
+  await db.transaction.createMany({
     data: [
       income({ amount: 350, method: "PIX", category: "Puericultura", day: d(2), patientId: joao.id, consultationId: puericultura.id }),
       income({ amount: 400, method: "CARTAO_CREDITO", category: "Consulta particular", day: 0, patientId: helena.id }),
@@ -215,4 +225,4 @@ main()
     console.error(err);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => Promise.all([prisma.$disconnect(), closeTenantClients()]));

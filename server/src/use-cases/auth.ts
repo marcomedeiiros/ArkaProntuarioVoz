@@ -3,11 +3,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { HttpError } from "../lib/http-error";
-import { DEFAULT_CATEGORIES } from "../lib/default-categories";
 import { email, name, password } from "../lib/validation";
+import { assertClinicCanUse, defaultRolePermissionRows, permissionsFor } from "../lib/permissions";
+import { MODULE_CATALOG, MODULE_KEYS } from "../lib/modules";
+import type { Role } from "@prisma/client";
 import { env } from "../env";
 import { escapeHtml, sendMail } from "../lib/mailer";
-import type { Actor } from "./policy";
 
 const BCRYPT_ROUNDS = 10;
 // Hash de uma senha qualquer, usado para comparar quando o e-mail não existe. Assim o tempo de
@@ -18,22 +19,35 @@ type UserRow = {
   id: string;
   name: string;
   email: string;
-  role: string;
-  clinicId: string;
+  role: Role;
+  clinicId: string | null;
   tokenVersion: number;
-  clinic: { id: string; name: string };
+  platformAdmin: boolean;
+  clinic: { id: string; name: string; modules: string[] } | null;
 };
 
 /**
  * Resultado de um caso de uso que abre sessão. `principal` vai para o cookie (a rota assina o
  * token); `session` é o que o front-end recebe. O token nunca aparece no corpo da resposta.
  */
-function opened(user: UserRow) {
+async function opened(user: UserRow) {
   return {
     principal: { id: user.id, tokenVersion: user.tokenVersion },
     session: {
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, clinicId: user.clinicId },
-      clinic: { id: user.clinic.id, name: user.clinic.name },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        clinicId: user.clinicId,
+        platformAdmin: user.platformAdmin,
+        // A tela usa só para esconder o que não cabe; quem decide é o servidor, em cada requisição.
+        // A conta da Arka não tem permissões de clínica: ela só vê a área da Arka.
+        permissions: user.clinicId && !user.platformAdmin ? await permissionsFor(user.clinicId, user.role) : [],
+      },
+      clinic: user.clinic && !user.platformAdmin ? { id: user.clinic.id, name: user.clinic.name, modules: user.clinic.modules } : null,
+      // Catálogo de abas (nome e descrição): o site monta o menu a partir dele.
+      catalog: MODULE_CATALOG,
     },
   };
 }
@@ -45,7 +59,10 @@ const RegisterSchema = z.object({
   password,
 });
 
-/** Cria a clínica, a primeira administradora e as categorias financeiras padrão, tudo ou nada. */
+/**
+ * Cria a clínica e a primeira administradora, tudo ou nada.
+ * A clínica nasce "em análise": ninguém entra até a Arka liberar (aba Liberação). Não abre sessão.
+ */
 export async function registerClinic(input: unknown) {
   const data = RegisterSchema.parse(input);
   if (await prisma.user.findUnique({ where: { email: data.email } })) {
@@ -55,12 +72,16 @@ export async function registerClinic(input: unknown) {
   const clinic = await prisma.clinic.create({
     data: {
       name: data.clinicName,
+      status: "PENDING",
+      // Empresa nova recebe todas as abas do catálogo; a Arka ajusta na liberação se precisar.
+      modules: MODULE_KEYS,
       users: { create: { name: data.name, email: data.email, passwordHash, role: "ADMIN" } },
-      categories: { create: DEFAULT_CATEGORIES.map((c) => ({ ...c })) },
+      // Distribuição padrão das permissões; o espaço de dados (schema) só é criado quando a Arka liberar.
+      rolePermissions: { create: defaultRolePermissionRows() },
     },
-    include: { users: true },
+    select: { name: true },
   });
-  return opened({ ...clinic.users[0], clinic });
+  return { status: "PENDING" as const, clinic: clinic.name };
 }
 
 const LoginSchema = z.object({
@@ -75,16 +96,21 @@ export async function login(input: unknown) {
   const user = await prisma.user.findUnique({ where: { email: data.email }, include: { clinic: true } });
   const valid = await bcrypt.compare(data.password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !valid || !user.active) throw new HttpError(401, "E-mail ou senha inválidos");
-  return { ...opened(user), remember: data.remember };
+  // Só depois de a senha conferir: assim a mensagem de "em análise" não revela quem tem cadastro.
+  if (!user.platformAdmin) {
+    if (!user.clinic) throw new HttpError(401, "E-mail ou senha inválidos");
+    assertClinicCanUse(user.clinic);
+  }
+  return { ...(await opened(user)), remember: data.remember };
 }
 
-export async function getSession(actor: Actor) {
+export async function getSession(actor: { userId: string }) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: actor.userId }, include: { clinic: true } });
-  return opened(user).session;
+  return (await opened(user)).session;
 }
 
 /** Invalida todas as sessões da pessoa, em todos os aparelhos (inclusive a atual). */
-export async function logoutEverywhere(actor: Actor) {
+export async function logoutEverywhere(actor: { userId: string }) {
   await prisma.user.update({ where: { id: actor.userId }, data: { tokenVersion: { increment: 1 } } });
 }
 
@@ -99,7 +125,7 @@ const ChangePasswordSchema = z
  * Troca a senha exigindo a senha atual. Encerra as sessões de todos os outros aparelhos;
  * o aparelho atual recebe uma sessão nova e continua conectado.
  */
-export async function changePassword(actor: Actor, input: unknown) {
+export async function changePassword(actor: { userId: string }, input: unknown) {
   const data = ChangePasswordSchema.parse(input);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: actor.userId } });
   if (!(await bcrypt.compare(data.currentPassword, user.passwordHash))) {

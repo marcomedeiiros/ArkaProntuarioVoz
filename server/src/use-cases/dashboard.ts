@@ -1,5 +1,5 @@
-import { prisma } from "../lib/prisma";
-import { isClinical, type Actor } from "./policy";
+import { tenantFor } from "../lib/tenant";
+import { can, type Actor } from "./policy";
 import { monthlySummary } from "./finance";
 
 /**
@@ -20,27 +20,33 @@ const listSelect = {
   status: true,
   createdAt: true,
   patient: { select: { id: true, name: true } },
-  doctor: { select: { name: true } },
+  doctorName: true,
 } as const;
 
+const withDoctor = <T extends { doctorName: string }>({ doctorName, ...c }: T) => ({ ...c, doctor: { name: doctorName } });
+
 export async function getDashboard(actor: Actor) {
-  const finance = await monthlySummary(actor, undefined);
-  const financeCard = { income: finance.income, pendingIncome: finance.pendingIncome };
+  // Cada bloco só aparece para quem tem a permissão correspondente na matriz da Arka.
+  const finance = can(actor, "FINANCE") ? await monthlySummary(actor, undefined) : null;
+  const financeCard = finance && { income: finance.income, pendingIncome: finance.pendingIncome };
 
-  if (!isClinical(actor)) return { clinical: null, finance: financeCard };
+  if (!can(actor, "CONSULTATIONS")) return { clinical: null, finance: financeCard };
 
-  const where = { clinicId: actor.clinicId };
+  const db = await tenantFor(actor.clinicId);
   const [todayCount, pendingCount, pending, recent] = await Promise.all([
-    prisma.consultation.count({ where: { ...where, createdAt: todayRange() } }),
-    prisma.consultation.count({ where: { ...where, status: { not: "FINALIZED" } } }),
-    prisma.consultation.findMany({
-      where: { ...where, status: { not: "FINALIZED" } },
+    db.consultation.count({ where: { createdAt: todayRange() } }),
+    db.consultation.count({ where: { status: { not: "FINALIZED" } } }),
+    db.consultation.findMany({
+      where: { status: { not: "FINALIZED" } },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: listSelect,
     }),
-    prisma.consultation.findMany({ where, orderBy: { createdAt: "desc" }, take: 6, select: listSelect }),
+    db.consultation.findMany({ orderBy: { createdAt: "desc" }, take: 6, select: listSelect }),
   ]);
 
-  return { clinical: { todayCount, pendingCount, pending, recent }, finance: financeCard };
+  return {
+    clinical: { todayCount, pendingCount, pending: pending.map(withDoctor), recent: recent.map(withDoctor) },
+    finance: financeCard,
+  };
 }

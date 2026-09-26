@@ -9,6 +9,8 @@ import { errorHandler } from "./middleware/error";
 import { apiLimiter } from "./middleware/rate-limit";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
+import { platformRouter } from "./routes/platform";
+import { appointmentsRouter } from "./routes/appointments";
 import { patientsRouter } from "./routes/patients";
 import { consultationsRouter } from "./routes/consultations";
 import { financeRouter } from "./routes/finance";
@@ -42,6 +44,8 @@ app.use("/api/users", requireAuth, usersRouter);
 app.use("/api/patients", requireAuth, patientsRouter);
 app.use("/api/consultations", requireAuth, consultationsRouter);
 app.use("/api/finance", requireAuth, financeRouter);
+app.use("/api/platform", requireAuth, platformRouter);
+app.use("/api/appointments", requireAuth, appointmentsRouter);
 
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });

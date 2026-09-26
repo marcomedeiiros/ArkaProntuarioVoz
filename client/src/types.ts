@@ -1,4 +1,15 @@
 export type Role = "ADMIN" | "DOCTOR" | "SECRETARY";
+/** Chave de uma aba do catálogo (a lista completa vem do servidor, em session.catalog). */
+export type Permission = string;
+
+/** Uma aba da plataforma, como o servidor descreve no catálogo. */
+export interface ModuleInfo {
+  key: Permission;
+  label: string;
+  description: string;
+  requires: Permission[];
+}
+export type ClinicStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED";
 export type Template = "PUERICULTURA" | "URGENCIA";
 export type ConsultationStatus = "DRAFT" | "GENERATED" | "FINALIZED";
 export type TransactionType = "INCOME" | "EXPENSE";
@@ -14,11 +25,17 @@ export interface User {
   active?: boolean;
   /** Consultas atendidas por esta pessoa (quem já atendeu não pode ser apagado). */
   consultationCount?: number;
+  /** Conta da Arka (dona do SaaS). */
+  platformAdmin?: boolean;
+  /** Só na sessão: o que o cargo pode acessar (a tela esconde; o servidor decide). */
+  permissions?: Permission[];
 }
 
 export interface Clinic {
   id: string;
   name: string;
+  /** Módulos que a Arka liberou para a clínica. */
+  modules?: Permission[];
 }
 
 export interface Patient {
@@ -101,7 +118,33 @@ export interface DashboardData {
     pending: ConsultationListItem[];
     recent: ConsultationListItem[];
   } | null;
-  finance: { income: number; pendingIncome: number };
+  /** null quando o cargo não tem acesso ao financeiro. */
+  finance: { income: number; pendingIncome: number } | null;
 }
 
 export type ConsultationCounts = Record<ConsultationStatus | "ALL", number>;
+
+export type AppointmentKind = "PUERICULTURA" | "URGENCIA" | "RETORNO" | "OUTRO";
+export type AppointmentStatus = "SCHEDULED" | "CONFIRMED" | "ARRIVED" | "DONE" | "CANCELED" | "NO_SHOW";
+
+/** Horário na agenda da clínica. */
+export interface Appointment {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  doctorName: string;
+  startsAt: string;
+  endsAt: string;
+  kind: AppointmentKind;
+  status: AppointmentStatus;
+  notes: string | null;
+  consultationId: string | null;
+  patient: Pick<Patient, "id" | "name" | "birthDate" | "guardianName" | "guardianPhone" | "allergies">;
+}
+
+/** Quem pode ter agenda na clínica (administração e médicos). */
+export interface Professional {
+  id: string;
+  name: string;
+  role: Role;
+}

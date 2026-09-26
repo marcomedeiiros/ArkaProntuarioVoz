@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { auth, requireAuth } from "../middleware/auth";
+import { anyAuth, requireAuth } from "../middleware/auth";
 import {
   forgotPasswordIpLimiter,
   forgotPasswordLimiter,
@@ -22,9 +22,8 @@ import {
 export const authRouter = Router();
 
 authRouter.post("/register", registerLimiter, async (req, res) => {
-  const { principal, session } = await registerClinic(req.body);
-  setSessionCookie(res, principal);
-  res.status(201).json(session);
+  // A clínica fica em análise até a Arka liberar: nenhuma sessão é aberta aqui.
+  res.status(201).json(await registerClinic(req.body));
 });
 
 authRouter.post("/login", loginLimiter, async (req, res) => {
@@ -34,7 +33,7 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
 });
 
 authRouter.get("/me", requireAuth, async (req, res) => {
-  res.json(await getSession(auth(req)));
+  res.json(await getSession(anyAuth(req)));
 });
 
 /** Sai deste aparelho. */
@@ -45,13 +44,13 @@ authRouter.post("/logout", (_req, res) => {
 
 /** Sai de todos os aparelhos (invalida todos os tokens desta pessoa). */
 authRouter.post("/logout-all", requireAuth, async (req, res) => {
-  await logoutEverywhere(auth(req));
+  await logoutEverywhere(anyAuth(req));
   clearSessionCookie(res);
   res.status(204).end();
 });
 
 authRouter.post("/change-password", requireAuth, passwordLimiter, async (req, res) => {
-  const { principal, session } = await changePassword(auth(req), req.body);
+  const { principal, session } = await changePassword(anyAuth(req), req.body);
   // Mantém a escolha de "lembrar de mim" da sessão atual.
   setSessionCookie(res, principal, verifySession(req.cookies?.[SESSION_COOKIE])?.rem ?? false);
   res.json(session);

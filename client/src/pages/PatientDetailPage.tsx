@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Baby, CalendarDays, ClipboardList, HeartPulse, MessageCircle, Pencil, Stethoscope, TriangleAlert } from "lucide-react";
 import { api } from "../api";
-import { useAuth } from "../auth";
+import { useCan } from "../auth";
 import { ageLabel, dateBR, dateTimeBR, formatPhone, TEMPLATE_LABEL, whatsappLink, plural } from "../format";
 import { PatientForm, type PatientInput } from "../components/PatientForm";
 import { Avatar, EmptyState, Modal, PageLoader, StatusBadge } from "../components/ui";
@@ -17,8 +17,7 @@ export function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { session } = useAuth();
-  const clinical = session!.user.role !== "SECRETARY";
+  const clinical = useCan().consultations;
   const [patient, setPatient] = useState<PatientWithHistory | null>(null);
   const [editing, setEditing] = useState(false);
   const [starting, setStarting] = useState<Template | null>(null);

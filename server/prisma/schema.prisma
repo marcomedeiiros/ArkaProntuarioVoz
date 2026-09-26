@@ -1,3 +1,7 @@
+// Banco da PLATAFORMA (schema public): contas, clínicas, liberação, permissões e configurações.
+// Os dados de cada clínica (pacientes, consultas, financeiro) NÃO ficam aqui: cada clínica tem o
+// próprio schema, definido em ./tenant/schema.prisma e criado quando a Arka libera o cadastro.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,56 +17,37 @@ enum Role {
   SECRETARY
 }
 
-enum Sex {
-  M
-  F
-}
-
-enum ConsultationTemplate {
-  PUERICULTURA
-  URGENCIA
-}
-
-enum ConsultationStatus {
-  DRAFT
-  GENERATED
-  FINALIZED
-}
-
-enum TransactionType {
-  INCOME
-  EXPENSE
-}
-
-enum PaymentMethod {
-  PIX
-  CARTAO_CREDITO
-  CARTAO_DEBITO
-  DINHEIRO
-  CONVENIO
-  OUTRO
-}
-
-enum TransactionStatus {
-  PAID
+/// Situação da clínica no SaaS. Cadastros pelo site nascem PENDING e só usam o sistema depois que a Arka libera.
+enum ClinicStatus {
   PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
 }
 
 model Clinic {
-  id            String              @id @default(cuid())
-  name          String
-  createdAt     DateTime            @default(now())
-  users         User[]
-  patients      Patient[]
-  consultations Consultation[]
-  categories    FinancialCategory[]
-  transactions  Transaction[]
+  id               String                 @id @default(cuid())
+  name             String
+  status           ClinicStatus           @default(ACTIVE)
+  /// Motivo da recusa ou da suspensão (mostrado para a clínica ao tentar entrar).
+  statusReason     String?
+  reviewedAt       DateTime?
+  /// Abas que a Arka liberou para esta clínica (chaves do catálogo em server/src/lib/modules.ts).
+  modules          String[]               @default(["PATIENTS", "CONSULTATIONS", "FINANCE", "TEAM"])
+  /// Quando o schema próprio da clínica foi criado (null = ainda não tem espaço de dados).
+  provisionedAt    DateTime?
+  /// Quando os dados de antes da separação por clínica foram copiados para o schema dela.
+  legacyImportedAt DateTime?
+  createdAt        DateTime               @default(now())
+  users            User[]
+  rolePermissions  ClinicRolePermission[]
 }
 
 model User {
   id             String               @id @default(cuid())
-  clinicId       String
-  clinic         Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  /// Null só para contas da Arka, que não pertencem a nenhuma clínica.
+  clinicId       String?
+  clinic         Clinic?              @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   name           String
   email          String               @unique
   passwordHash   String
@@ -71,8 +56,9 @@ model User {
   /// Incrementado para invalidar na hora todos os tokens da pessoa
   /// (sair de todos os dispositivos, troca de senha, desativação).
   tokenVersion   Int                  @default(0)
+  /// Conta da empresa (Arka): libera clínicas e define os módulos de cada uma. Não vê dados de clínicas.
+  platformAdmin  Boolean              @default(false)
   createdAt      DateTime             @default(now())
-  consultations  Consultation[]
   passwordResets PasswordResetToken[]
 }
 
@@ -90,79 +76,21 @@ model PasswordResetToken {
   @@index([userId])
 }
 
-model Patient {
-  id            String         @id @default(cuid())
-  clinicId      String
-  clinic        Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  name          String
-  birthDate     DateTime
-  sex           Sex
-  guardianName  String
-  guardianPhone String
-  allergies     String?
-  notes         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  consultations Consultation[]
-  transactions  Transaction[]
+/// O que cada cargo acessa DENTRO de uma clínica. Definido pela administração da clínica,
+/// sempre limitado aos módulos que a Arka liberou para ela.
+model ClinicRolePermission {
+  clinicId   String
+  clinic     Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  role       Role
+  /// Chave de uma aba do catálogo (server/src/lib/modules.ts).
+  permission String
 
-  @@index([clinicId, name])
+  @@id([clinicId, role, permission])
 }
 
-model Consultation {
-  id                String               @id @default(cuid())
-  clinicId          String
-  clinic            Clinic               @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  patientId         String
-  patient           Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId          String
-  doctor            User                 @relation(fields: [doctorId], references: [id])
-  template          ConsultationTemplate
-  status            ConsultationStatus   @default(DRAFT)
-  weightKg          Decimal?             @db.Decimal(6, 3)
-  heightCm          Decimal?             @db.Decimal(5, 1)
-  transcript        String               @default("")
-  evolution         String?
-  prescription      Json?
-  prescriptionNotes String?
-  parentGuide       String?
-  alerts            Json?
-  generatedAt       DateTime?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  transactions      Transaction[]
-
-  @@index([clinicId, createdAt])
-}
-
-model FinancialCategory {
-  id           String          @id @default(cuid())
-  clinicId     String
-  clinic       Clinic          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  name         String
-  type         TransactionType
-  transactions Transaction[]
-
-  @@unique([clinicId, name, type])
-}
-
-model Transaction {
-  id             String            @id @default(cuid())
-  clinicId       String
-  clinic         Clinic            @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  type           TransactionType
-  status         TransactionStatus @default(PAID)
-  amount         Decimal           @db.Decimal(10, 2)
-  method         PaymentMethod
-  date           DateTime
-  description    String?
-  categoryId     String
-  category       FinancialCategory @relation(fields: [categoryId], references: [id])
-  patientId      String?
-  patient        Patient?          @relation(fields: [patientId], references: [id], onDelete: SetNull)
-  consultationId String?
-  consultation   Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
-  createdAt      DateTime          @default(now())
-
-  @@index([clinicId, date])
+/// Configurações da plataforma (chave/valor). Valores secretos são guardados criptografados.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

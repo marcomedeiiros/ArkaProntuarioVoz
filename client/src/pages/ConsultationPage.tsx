@@ -18,6 +18,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { api } from "../api";
+import { useCan } from "../auth";
 import { ageLabel, brl, dateTimeBR, METHOD_LABEL, TEMPLATE_LABEL, whatsappLink } from "../format";
 import { useServerTranscription } from "../useServerTranscription";
 import { CopyButton } from "../components/CopyButton";
@@ -46,6 +47,7 @@ function formatElapsed(seconds: number) {
 export function ConsultationPage() {
   const { id } = useParams();
   const toast = useToast();
+  const canFinance = useCan().finance;
   const [c, setC] = useState<Consultation | null>(null);
   const [transcript, setTranscript] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -367,7 +369,9 @@ export function ConsultationPage() {
                 <TabButton tab="evolution" current={tab} onSelect={setTab} icon={FileText} label="Evolução" />
                 <TabButton tab="prescription" current={tab} onSelect={setTab} icon={Pill} label="Receita" count={prescription.length} />
                 <TabButton tab="guide" current={tab} onSelect={setTab} icon={Heart} label="Guia dos pais" />
-                <TabButton tab="payment" current={tab} onSelect={setTab} icon={Receipt} label="Pagamento" count={c.transactions.length} />
+                {canFinance && (
+                  <TabButton tab="payment" current={tab} onSelect={setTab} icon={Receipt} label="Pagamento" count={c.transactions.length} />
+                )}
               </div>
 
               <div className="card-body">
@@ -447,7 +451,7 @@ export function ConsultationPage() {
                   </>
                 )}
 
-                {tab === "payment" && (
+                {tab === "payment" && canFinance && (
                   <>
                     {c.transactions.map((t) => (
                       <div key={t.id} className="payment-row">

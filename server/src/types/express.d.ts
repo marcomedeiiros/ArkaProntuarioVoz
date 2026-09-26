@@ -1,9 +1,9 @@
-import type { Actor } from "../use-cases/policy";
+import type { Principal } from "../middleware/auth";
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: Actor;
+      auth?: Principal;
     }
   }
 }

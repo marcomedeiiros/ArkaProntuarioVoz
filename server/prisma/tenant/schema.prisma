@@ -1,0 +1,162 @@
+// Dados de UMA clínica. Cada clínica tem o seu próprio schema no Postgres (clinica_<id>),
+// criado quando a Arka libera o cadastro. Nada aqui aponta para outra clínica.
+// As contas (logins) ficam no banco da plataforma (../schema.prisma); aqui guardamos só o id
+// e o nome de quem atendeu, porque o prontuário precisa manter o nome mesmo se a conta sumir.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/tenant"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TENANT_DATABASE_URL")
+}
+
+enum Sex {
+  M
+  F
+}
+
+enum ConsultationTemplate {
+  PUERICULTURA
+  URGENCIA
+}
+
+enum ConsultationStatus {
+  DRAFT
+  GENERATED
+  FINALIZED
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  PIX
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  DINHEIRO
+  CONVENIO
+  OUTRO
+}
+
+enum TransactionStatus {
+  PAID
+  PENDING
+}
+
+/// Tipo de horário marcado na agenda.
+enum AppointmentKind {
+  PUERICULTURA
+  URGENCIA
+  RETORNO
+  OUTRO
+}
+
+/// Etapas de um horário: marcado, confirmado pelo responsável, chegou, atendido, cancelado ou faltou.
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  ARRIVED
+  DONE
+  CANCELED
+  NO_SHOW
+}
+
+model Patient {
+  id            String         @id @default(cuid())
+  name          String
+  birthDate     DateTime
+  sex           Sex
+  guardianName  String
+  guardianPhone String
+  allergies     String?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  consultations Consultation[]
+  transactions  Transaction[]
+  appointments  Appointment[]
+
+  @@index([name])
+}
+
+model Consultation {
+  id                String               @id @default(cuid())
+  patientId         String
+  patient           Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  /// Conta que atendeu (no banco da plataforma) e o nome dela no momento do atendimento.
+  doctorId          String
+  doctorName        String
+  template          ConsultationTemplate
+  status            ConsultationStatus   @default(DRAFT)
+  weightKg          Decimal?             @db.Decimal(6, 3)
+  heightCm          Decimal?             @db.Decimal(5, 1)
+  transcript        String               @default("")
+  evolution         String?
+  prescription      Json?
+  prescriptionNotes String?
+  parentGuide       String?
+  alerts            Json?
+  generatedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  transactions      Transaction[]
+  appointments      Appointment[]
+
+  @@index([createdAt])
+  @@index([doctorId])
+}
+
+model FinancialCategory {
+  id           String          @id @default(cuid())
+  name         String
+  type         TransactionType
+  transactions Transaction[]
+
+  @@unique([name, type])
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  type           TransactionType
+  status         TransactionStatus @default(PAID)
+  amount         Decimal           @db.Decimal(10, 2)
+  method         PaymentMethod
+  date           DateTime
+  description    String?
+  categoryId     String
+  category       FinancialCategory @relation(fields: [categoryId], references: [id])
+  patientId      String?
+  patient        Patient?          @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  consultationId String?
+  consultation   Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+
+  @@index([date])
+}
+
+/// Horário na agenda da clínica. O profissional é uma conta da plataforma (id + nome guardado).
+model Appointment {
+  id             String            @id @default(cuid())
+  patientId      String
+  patient        Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId       String
+  doctorName     String
+  startsAt       DateTime
+  endsAt         DateTime
+  kind           AppointmentKind   @default(PUERICULTURA)
+  status         AppointmentStatus @default(SCHEDULED)
+  notes          String?
+  /// Consulta aberta a partir deste horário (quando o atendimento começa).
+  consultationId String?
+  consultation   Consultation?     @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([startsAt])
+  @@index([doctorId, startsAt])
+}

@@ -63,7 +63,7 @@ export function LoginPage() {
         </div>
         {remember && (
           <p className="field-hint" style={{ marginTop: -8 }}>
-            Você continua conectado neste aparelho por até 14 dias não marque em computadores compartilhados
+            Você continua conectado neste aparelho por até 14 dias (não marque em computadores compartilhados)
           </p>
         )}
         {notice && !error && (

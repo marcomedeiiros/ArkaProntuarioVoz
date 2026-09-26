@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 import request from "supertest";
 import { app } from "../src/app";
 import { prisma } from "../src/lib/prisma";
-import { DEFAULT_CATEGORIES } from "../src/lib/default-categories";
+import { DEFAULT_ROLE_PERMISSIONS } from "../src/lib/permissions";
+import { closeTenantClients, provisionTenant, tenantDb } from "../src/lib/tenant";
 import { assertIsTestDatabase } from "./test-db";
 
-export { app, prisma };
+export { app, prisma, tenantDb };
 
 /** Senhas descartáveis, novas a cada execução: nenhuma senha fixa no repositório. */
 export const randomPassword = () => randomBytes(16).toString("base64url");
@@ -15,8 +16,12 @@ export const PASSWORD = randomPassword();
 /** Apaga todos os dados do banco de testes (nunca roda fora de um banco "_test"). */
 export async function resetDb() {
   assertIsTestDatabase(process.env.DATABASE_URL);
+  await closeTenantClients();
+  // Cada clínica tem o próprio schema: some junto com a clínica.
+  const schemas = await prisma.$queryRaw<{ nspname: string }[]>`SELECT nspname FROM pg_namespace WHERE nspname LIKE 'clinica_%'`;
+  for (const { nspname } of schemas) await prisma.$executeRawUnsafe(`DROP SCHEMA "${nspname}" CASCADE`);
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Transaction", "FinancialCategory", "Consultation", "Patient", "User", "Clinic" CASCADE',
+    'TRUNCATE "PasswordResetToken", "ClinicRolePermission", "PlatformSetting", "User", "Clinic" CASCADE',
   );
 }
 
@@ -30,8 +35,18 @@ export async function createClinic(label = "Clínica") {
   const tag = `${Date.now()}-${++seq}`;
   const passwordHash = await bcrypt.hash(PASSWORD, 4); // custo baixo: testes rápidos
   const clinic = await prisma.clinic.create({
-    data: { name: `${label} ${tag}`, categories: { create: DEFAULT_CATEGORIES.map((c) => ({ ...c })) } },
+    data: {
+      name: `${label} ${tag}`,
+      status: "ACTIVE",
+      rolePermissions: {
+        create: Object.entries(DEFAULT_ROLE_PERMISSIONS).flatMap(([role, perms]) =>
+          perms.map((permission) => ({ role: role as "DOCTOR" | "SECRETARY", permission })),
+        ),
+      },
+    },
   });
+  await provisionTenant(clinic.id); // schema próprio + categorias padrão
+  const db = tenantDb(clinic.id);
   const user = (role: "ADMIN" | "DOCTOR" | "SECRETARY", name: string) =>
     prisma.user.create({
       data: { clinicId: clinic.id, role, name, email: `${name.toLowerCase().replace(/\W/g, "")}.${tag}@teste.dev`, passwordHash },
@@ -43,9 +58,8 @@ export async function createClinic(label = "Clínica") {
     user("SECRETARY", "Secretaria"),
   ]);
 
-  const patient = await prisma.patient.create({
+  const patient = await db.patient.create({
     data: {
-      clinicId: clinic.id,
       name: "João Pedro",
       birthDate: new Date(Date.UTC(2026, 5, 1)),
       sex: "M",
@@ -53,9 +67,8 @@ export async function createClinic(label = "Clínica") {
       guardianPhone: "27998112233",
     },
   });
-  const otherPatient = await prisma.patient.create({
+  const otherPatient = await db.patient.create({
     data: {
-      clinicId: clinic.id,
       name: "Helena Martins",
       birthDate: new Date(Date.UTC(2024, 6, 1)),
       sex: "F",
@@ -68,11 +81,11 @@ export async function createClinic(label = "Clínica") {
   const transcript =
     "Mãe relata aleitamento materno exclusivo, oito mamadas ao dia. Sustenta a cabeça e sorri. Vacinas em dia.";
   const consult = (status: "DRAFT" | "GENERATED" | "FINALIZED") =>
-    prisma.consultation.create({
+    db.consultation.create({
       data: {
-        clinicId: clinic.id,
         patientId: patient.id,
         doctorId: doctor.id,
+        doctorName: doctor.name,
         template: "PUERICULTURA",
         status,
         transcript,
@@ -88,7 +101,7 @@ export async function createClinic(label = "Clínica") {
     });
   const [draft, generated, finalized] = await Promise.all([consult("DRAFT"), consult("GENERATED"), consult("FINALIZED")]);
 
-  const categories = await prisma.financialCategory.findMany({ where: { clinicId: clinic.id } });
+  const categories = await db.financialCategory.findMany();
   return {
     clinic,
     users: { admin, doctor, doctor2, secretary },

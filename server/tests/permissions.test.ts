@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { api, createClinic, loginAs, PASSWORD, prisma, randomPassword, resetDb, type ClinicFixture } from "./helpers";
+import { api, createClinic, loginAs, PASSWORD, prisma, randomPassword, resetDb, type ClinicFixture, tenantDb } from "./helpers";
 
 let c: ClinicFixture;
 let other: ClinicFixture;
@@ -67,7 +67,10 @@ describe("isolamento entre clínicas", () => {
     expect((await intruder.patch(`/api/consultations/${c.consultations.draft.id}`).send({ transcript: "x" })).status).toBe(404);
 
     const search = await intruder.get("/api/patients").query({ q: "João" });
-    expect(search.body.every((p: { clinicId: string }) => p.clinicId === other.clinic.id)).toBe(true);
+    // Cada clínica só enxerga o próprio schema: nenhum paciente da clínica A aparece na busca da B.
+    const ids = search.body.map((p: { id: string }) => p.id);
+    expect(ids).not.toContain(c.patient.id);
+    expect(ids).toContain(other.patient.id);
   });
 
   it("não usa categoria, paciente ou consulta de outra clínica", async () => {
@@ -182,8 +185,8 @@ describe("apagar conta da equipe", () => {
 
   it("quem já atendeu não pode ser apagado: o prontuário precisa ser guardado", async () => {
     const { admin, member } = await newMember("DOCTOR");
-    await prisma.consultation.create({
-      data: { clinicId: c.clinic.id, doctorId: member.id, patientId: c.patient.id, template: "PUERICULTURA" },
+    await tenantDb(c.clinic.id).consultation.create({
+      data: { doctorId: member.id, doctorName: "Temporária", patientId: c.patient.id, template: "PUERICULTURA" },
     });
     const res = await admin.delete(`/api/users/${member.id}`);
     expect(res.status).toBe(409);
